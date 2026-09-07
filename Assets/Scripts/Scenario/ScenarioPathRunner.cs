@@ -4,9 +4,10 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Procedurally generates scenario stretches at runtime and scrolls them past
-/// a fixed camera/player. Planetary and Space alternate; cloud piles appear
-/// only on the horizontal seam during transitions.
+/// Scrolls procedurally generated scenario chunks past a fixed camera/player.
+/// Owns path timing/transitions only; scenario rolls come from
+/// <see cref="ScenarioGenerator"/> and visuals from <see cref="ScenarioChunkBuilder"/>.
+/// Planetary/Space alternate; cloud piles appear only on the horizontal seam.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(ScenarioChunkBuilder))]
@@ -310,117 +311,9 @@ public class ScenarioPathRunner : MonoBehaviour
             InitRunRng();
         }
 
+        var generator = new ScenarioGenerator(_runRng, scenarioDurationSeconds, _loopIndex);
         _generated.Clear();
-        int count = Mathf.Max(1, scenariosPerLoop);
-
-        // Randomize which kind starts this loop, then keep alternating.
-        ScenarioKind kind = _runRng.Next(0, 2) == 0 ? ScenarioKind.Planetary : ScenarioKind.Space;
-
-        for (int i = 0; i < count; i++)
-        {
-            _generated.Add(CreateScenario(kind, i));
-            kind = kind == ScenarioKind.Planetary ? ScenarioKind.Space : ScenarioKind.Planetary;
-        }
-    }
-
-    ScenarioDefinition CreateScenario(ScenarioKind kind, int indexInLoop)
-    {
-        // Bold rolls: solid or multi-stop feel via horizontal gradient.
-        bool useGradient = _runRng.NextDouble() < 0.62;
-        Color primary = RollBackgroundColor(kind);
-        Color secondary = RollBackgroundColor(kind);
-
-        if (useGradient)
-        {
-            // Force a readable contrast between gradient ends.
-            int guard = 0;
-            while (ColorsTooClose(primary, secondary) && guard++ < 8)
-            {
-                secondary = RollBackgroundColor(kind);
-            }
-
-            if (ColorsTooClose(primary, secondary))
-            {
-                Color.RGBToHSV(primary, out float h, out float s, out float v);
-                secondary = Color.HSVToRGB(
-                    (h + 0.18f + (float)_runRng.NextDouble() * 0.25f) % 1f,
-                    Mathf.Clamp01(s * 0.85f),
-                    Mathf.Clamp01(kind == ScenarioKind.Space ? v * 0.55f : v * 1.15f));
-            }
-        }
-
-        return new ScenarioDefinition
-        {
-            displayName = kind == ScenarioKind.Planetary
-                ? $"Planeta {_loopIndex}-{indexInLoop}"
-                : $"Espaco {_loopIndex}-{indexInLoop}",
-            kind = kind,
-            color = primary,
-            useGradient = useGradient,
-            gradientColor = secondary,
-            durationSeconds = scenarioDurationSeconds,
-            seed = _runRng.Next(1, int.MaxValue),
-        };
-    }
-
-    Color RollBackgroundColor(ScenarioKind kind)
-    {
-        float hue = (float)_runRng.NextDouble();
-
-        if (kind == ScenarioKind.Planetary)
-        {
-            // Punchy surface colors: any hue, usually vivid, never near-black.
-            float sat = LerpRng(0.45f, 1f);
-            float val = LerpRng(0.42f, 0.95f);
-
-            // Occasional pastel / neon extremes.
-            double style = _runRng.NextDouble();
-            if (style < 0.18)
-            {
-                sat = LerpRng(0.15f, 0.4f);
-                val = LerpRng(0.75f, 1f);
-            }
-            else if (style < 0.36)
-            {
-                sat = LerpRng(0.85f, 1f);
-                val = LerpRng(0.55f, 1f);
-            }
-
-            return Color.HSVToRGB(hue, sat, val);
-        }
-
-        // Space: dark but chromatic — deep teals, magentas, violets, crimson voids.
-        float spaceSat = LerpRng(0.35f, 1f);
-        float spaceVal = LerpRng(0.04f, 0.28f);
-
-        double spaceStyle = _runRng.NextDouble();
-        if (spaceStyle < 0.2)
-        {
-            // Near-black with a tint.
-            spaceSat = LerpRng(0.2f, 0.7f);
-            spaceVal = LerpRng(0.02f, 0.1f);
-        }
-        else if (spaceStyle < 0.4)
-        {
-            // Bold nebula glow (still darker than planetary).
-            spaceSat = LerpRng(0.7f, 1f);
-            spaceVal = LerpRng(0.16f, 0.38f);
-        }
-
-        return Color.HSVToRGB(hue, spaceSat, spaceVal);
-    }
-
-    float LerpRng(float a, float b)
-    {
-        return a + (float)_runRng.NextDouble() * (b - a);
-    }
-
-    static bool ColorsTooClose(Color a, Color b)
-    {
-        float dr = a.r - b.r;
-        float dg = a.g - b.g;
-        float db = a.b - b.b;
-        return (dr * dr + dg * dg + db * db) < 0.045f;
+        _generated.AddRange(generator.GenerateLoop(scenariosPerLoop));
     }
 
     bool TryGetScenario(int index, out ScenarioDefinition scenario)
