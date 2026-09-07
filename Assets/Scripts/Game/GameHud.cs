@@ -2,13 +2,15 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Screen-space HUD for the run. Shows completed scenario loops, scaled for
-/// portrait phones and inset into the device safe area (notch / home indicator).
+/// Screen-space HUD for the run. Shows player health and completed scenario loops,
+/// scaled for portrait phones and inset into the device safe area (notch / home indicator).
 /// </summary>
 [DisallowMultipleComponent]
 public class GameHud : MonoBehaviour
 {
     [SerializeField] ScenarioPathRunner pathRunner;
+    [SerializeField] PlayerHealth playerHealth;
+    [SerializeField] string healthLabelFormat = "{0}/{1}";
     [SerializeField] string loopLabelFormat = "Loop: {0}";
 
     [Header("Mobile Layout")]
@@ -21,6 +23,7 @@ public class GameHud : MonoBehaviour
 
     static readonly Color LabelColor = new Color(0.92f, 0.95f, 1f, 1f);
 
+    Text _healthText;
     Text _loopText;
     RectTransform _safeAreaRoot;
     Rect _lastSafeArea;
@@ -33,8 +36,16 @@ public class GameHud : MonoBehaviour
             pathRunner = FindFirstObjectByType<ScenarioPathRunner>();
         }
 
+        if (playerHealth == null)
+        {
+            playerHealth = FindFirstObjectByType<PlayerHealth>();
+        }
+
         BuildUi();
         ApplySafeArea(force: true);
+        RefreshHealthLabel(
+            playerHealth != null ? playerHealth.CurrentHealth : 100,
+            playerHealth != null ? playerHealth.MaxHealth : 100);
         RefreshLoopLabel(pathRunner != null ? pathRunner.LoopIndex : 0);
     }
 
@@ -44,6 +55,11 @@ public class GameHud : MonoBehaviour
         {
             pathRunner.OnLoopStarted += HandleLoopStarted;
         }
+
+        if (playerHealth != null)
+        {
+            playerHealth.HealthChanged += HandleHealthChanged;
+        }
     }
 
     void OnDisable()
@@ -51,6 +67,11 @@ public class GameHud : MonoBehaviour
         if (pathRunner != null)
         {
             pathRunner.OnLoopStarted -= HandleLoopStarted;
+        }
+
+        if (playerHealth != null)
+        {
+            playerHealth.HealthChanged -= HandleHealthChanged;
         }
     }
 
@@ -62,6 +83,21 @@ public class GameHud : MonoBehaviour
     void HandleLoopStarted(int loopIndex)
     {
         RefreshLoopLabel(loopIndex);
+    }
+
+    void HandleHealthChanged(int current, int max)
+    {
+        RefreshHealthLabel(current, max);
+    }
+
+    void RefreshHealthLabel(int current, int max)
+    {
+        if (_healthText == null)
+        {
+            return;
+        }
+
+        _healthText.text = string.Format(healthLabelFormat, current, max);
     }
 
     void RefreshLoopLabel(int loopIndex)
@@ -100,31 +136,41 @@ public class GameHud : MonoBehaviour
         _safeAreaRoot.offsetMin = Vector2.zero;
         _safeAreaRoot.offsetMax = Vector2.zero;
 
-        var labelObject = new GameObject("LoopLabel", typeof(RectTransform), typeof(Text), typeof(ContentSizeFitter));
+        _healthText = CreateHudLabel("HealthLabel", new Vector2(0f, 1f), TextAnchor.UpperLeft,
+            new Vector2(Mathf.Abs(padding.x), -Mathf.Abs(padding.y)), "100/100");
+
+        _loopText = CreateHudLabel("LoopLabel", new Vector2(1f, 0f), TextAnchor.LowerRight,
+            new Vector2(-Mathf.Abs(padding.x), Mathf.Abs(padding.y)), string.Format(loopLabelFormat, 0));
+    }
+
+    Text CreateHudLabel(string objectName, Vector2 anchor, TextAnchor alignment, Vector2 anchoredPosition, string initialText)
+    {
+        var labelObject = new GameObject(objectName, typeof(RectTransform), typeof(Text), typeof(ContentSizeFitter));
         labelObject.transform.SetParent(_safeAreaRoot, false);
 
         var rect = labelObject.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(1f, 0f);
-        rect.anchorMax = new Vector2(1f, 0f);
-        rect.pivot = new Vector2(1f, 0f);
-        // Bottom-right pivot: negative X pulls the label left into the screen.
-        rect.anchoredPosition = new Vector2(-Mathf.Abs(padding.x), Mathf.Abs(padding.y));
-        rect.sizeDelta = new Vector2(0f, 0f);
+        rect.anchorMin = anchor;
+        rect.anchorMax = anchor;
+        rect.pivot = anchor;
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = Vector2.zero;
 
         var fitter = labelObject.GetComponent<ContentSizeFitter>();
         fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        _loopText = labelObject.GetComponent<Text>();
-        _loopText.text = string.Format(loopLabelFormat, 0);
-        _loopText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-        _loopText.fontSize = fontSize;
-        _loopText.fontStyle = FontStyle.Bold;
-        _loopText.alignment = TextAnchor.LowerRight;
-        _loopText.color = LabelColor;
-        _loopText.horizontalOverflow = HorizontalWrapMode.Overflow;
-        _loopText.verticalOverflow = VerticalWrapMode.Overflow;
-        _loopText.raycastTarget = false;
+        var text = labelObject.GetComponent<Text>();
+        text.text = initialText;
+        text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        text.fontSize = fontSize;
+        text.fontStyle = FontStyle.Bold;
+        text.alignment = alignment;
+        text.color = LabelColor;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.raycastTarget = false;
+
+        return text;
     }
 
     void ApplySafeArea(bool force)

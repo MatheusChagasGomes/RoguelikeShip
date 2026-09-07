@@ -1,18 +1,31 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 /// <summary>
-/// Colored scenario screens scroll past a fixed camera/player.
-/// Current screen slides toward the bottom of the game view; the next fills
-/// the view behind it and is revealed from the top.
+/// Procedurally generates scenario stretches at runtime and scrolls them past
+/// a fixed camera/player. Planetary and Space alternate; cloud piles appear
+/// only on the horizontal seam during transitions.
 /// </summary>
 [DisallowMultipleComponent]
+[RequireComponent(typeof(ScenarioChunkBuilder))]
 [DefaultExecutionOrder(100)]
 public class ScenarioPathRunner : MonoBehaviour
 {
-    [Header("Scenarios")]
+    [Header("Procedural Path")]
     [SerializeField]
-    ScenarioDefinition[] scenarios = CreateDefaultScenarios();
+    [Min(1)]
+    [Tooltip("How many freshly generated scenarios make up one loop.")]
+    int scenariosPerLoop = 6;
+
+    [SerializeField]
+    [Min(0.1f)]
+    float scenarioDurationSeconds = 8f;
+
+    [SerializeField]
+    [Tooltip("If > 0, the whole run uses this seed. 0 = different layout every play.")]
+    int runSeed;
 
     [Header("Scroll")]
     [SerializeField]
@@ -28,6 +41,10 @@ public class ScenarioPathRunner : MonoBehaviour
     int sortingOrder = -100;
 
     [SerializeField]
+    [Tooltip("Must be above the player (sorting 3) so the ship flies behind the cloud seam.")]
+    int cloudSeamSortingOrder = 50;
+
+    [SerializeField]
     Camera worldCamera;
 
     [Header("Runtime")]
@@ -35,11 +52,15 @@ public class ScenarioPathRunner : MonoBehaviour
     bool autoStart = true;
 
     [SerializeField]
-    [Tooltip("When all scenarios finish, restart from the first and raise the loop index.")]
+    [Tooltip("When all scenarios finish, generate a new loop and raise the loop index.")]
     bool loopOnComplete = true;
 
-    SpriteRenderer _currentScreen;
-    SpriteRenderer _incomingScreen;
+    ScenarioChunkBuilder _chunkBuilder;
+    Transform _currentChunk;
+    Transform _incomingChunk;
+    Transform _seamClouds;
+    readonly List<ScenarioDefinition> _generated = new();
+    System.Random _runRng;
     float _segmentTravel;
     float _currentDurationDistance;
     int _scenarioIndex;
@@ -47,8 +68,8 @@ public class ScenarioPathRunner : MonoBehaviour
     bool _isRunning;
     bool _completed;
     bool _isTransitioning;
-    Sprite _whiteSprite;
-    Texture2D _whiteTexture;
+    float _chunkHalfWidth;
+    float _chunkHalfHeight;
 
     public event Action<int> OnScenarioStarted;
     public event Action OnPathCompleted;
@@ -60,52 +81,27 @@ public class ScenarioPathRunner : MonoBehaviour
     public bool LoopOnComplete => loopOnComplete;
     public int CurrentScenarioIndex => _scenarioIndex;
     public int LoopIndex => _loopIndex;
-    public int ScenarioCount => scenarios != null ? scenarios.Length : 0;
+    public int ScenarioCount => Mathf.Max(1, scenariosPerLoop);
     public float Progress01
     {
         get
         {
-            if (scenarios == null || scenarios.Length == 0)
+            int count = ScenarioCount;
+            float distancePer = scrollSpeed * Mathf.Max(0.1f, scenarioDurationSeconds);
+            float total = distancePer * count;
+            if (total <= 0f)
             {
                 return 0f;
             }
 
-            float total = 0f;
-            float done = 0f;
-            for (int i = 0; i < scenarios.Length; i++)
-            {
-                float distance = scrollSpeed * Mathf.Max(0.1f, scenarios[i].durationSeconds);
-                total += distance;
-                if (i < _scenarioIndex)
-                {
-                    done += distance;
-                }
-                else if (i == _scenarioIndex)
-                {
-                    done += Mathf.Min(_segmentTravel, distance);
-                }
-            }
-
-            return total <= 0f ? 0f : Mathf.Clamp01(done / total);
+            float done = distancePer * _scenarioIndex;
+            done += Mathf.Min(_segmentTravel, distancePer);
+            return Mathf.Clamp01(done / total);
         }
-    }
-
-    static ScenarioDefinition[] CreateDefaultScenarios()
-    {
-        return new[]
-        {
-            new ScenarioDefinition { displayName = "Azul", color = new Color(0.25f, 0.55f, 0.95f), durationSeconds = 8f },
-            new ScenarioDefinition { displayName = "Amarelo", color = new Color(0.95f, 0.85f, 0.25f), durationSeconds = 8f },
-            new ScenarioDefinition { displayName = "Roxo", color = new Color(0.65f, 0.30f, 0.90f), durationSeconds = 8f },
-            new ScenarioDefinition { displayName = "Laranja", color = new Color(0.95f, 0.50f, 0.20f), durationSeconds = 8f },
-            new ScenarioDefinition { displayName = "Cinza", color = new Color(0.45f, 0.45f, 0.48f), durationSeconds = 8f },
-            new ScenarioDefinition { displayName = "Verde", color = new Color(0.25f, 0.75f, 0.35f), durationSeconds = 8f },
-        };
     }
 
     void Awake()
     {
-        // Keep Device Simulator / mobile orientation aligned with Game & Scene (+Y = up).
         Screen.orientation = ScreenOrientation.Portrait;
 
         if (worldCamera == null)
@@ -113,12 +109,18 @@ public class ScenarioPathRunner : MonoBehaviour
             worldCamera = Camera.main;
         }
 
-        EnsureWhiteSprite();
+        _chunkBuilder = GetComponent<ScenarioChunkBuilder>();
+        if (_chunkBuilder == null)
+        {
+            _chunkBuilder = gameObject.AddComponent<ScenarioChunkBuilder>();
+        }
+
+        _chunkBuilder.EnsureArtLoaded();
     }
 
     void Start()
     {
-        CreateScreens();
+        CreateChunks();
 
         if (autoStart)
         {
@@ -128,16 +130,9 @@ public class ScenarioPathRunner : MonoBehaviour
 
     void OnDestroy()
     {
-        if (_whiteSprite != null)
+        if (_chunkBuilder != null)
         {
-            Destroy(_whiteSprite);
-            _whiteSprite = null;
-        }
-
-        if (_whiteTexture != null)
-        {
-            Destroy(_whiteTexture);
-            _whiteTexture = null;
+            _chunkBuilder.ReleaseRuntimeAssets();
         }
     }
 
@@ -151,11 +146,14 @@ public class ScenarioPathRunner : MonoBehaviour
         float delta = scrollSpeed * Time.deltaTime;
         _segmentTravel += delta;
 
-        if (_isTransitioning && _currentScreen != null)
+        if (_isTransitioning && _currentChunk != null)
         {
-            // Slide the old screen toward the bottom of the view. The next screen
-            // is already centered behind it, so it is revealed from the top.
-            _currentScreen.transform.position += Vector3.down * delta;
+            // Seam clouds ride the top edge of the outgoing chunk.
+            _currentChunk.position += Vector3.down * delta;
+            if (_seamClouds != null)
+            {
+                _seamClouds.position += Vector3.down * delta;
+            }
 
             if (_segmentTravel >= _currentDurationDistance)
             {
@@ -174,18 +172,13 @@ public class ScenarioPathRunner : MonoBehaviour
     }
 
     /// <summary>
-    /// Starts (or restarts) the scenario sequence. Pass resetLoopIndex to clear the run cycle count.
+    /// Starts (or restarts) a freshly generated scenario loop.
     /// </summary>
     public void BeginLoop(int loopIndex, bool resetLoopIndex = false)
     {
-        if (_currentScreen == null)
+        if (_currentChunk == null)
         {
-            CreateScreens();
-        }
-
-        if (scenarios == null || scenarios.Length == 0)
-        {
-            scenarios = CreateDefaultScenarios();
+            CreateChunks();
         }
 
         _loopIndex = resetLoopIndex ? 0 : Mathf.Max(0, loopIndex);
@@ -195,17 +188,19 @@ public class ScenarioPathRunner : MonoBehaviour
         _segmentTravel = 0f;
         _isRunning = true;
 
-        ApplyScreenTransform(_currentScreen, GetViewCenter(), GetScenarioColor(0));
-        _currentScreen.sortingOrder = sortingOrder + 1;
-        _currentScreen.enabled = true;
+        InitRunRng();
+        GenerateLoopScenarios();
+        ClearSeamClouds();
 
-        if (_incomingScreen != null)
+        ApplyChunk(_currentChunk, GetViewCenter(), 0, sortingOrder + 1);
+        _currentChunk.gameObject.SetActive(true);
+
+        if (_incomingChunk != null)
         {
-            _incomingScreen.sortingOrder = sortingOrder;
-            _incomingScreen.enabled = false;
+            _incomingChunk.gameObject.SetActive(false);
         }
 
-        _currentDurationDistance = scrollSpeed * Mathf.Max(0.1f, scenarios[0].durationSeconds);
+        _currentDurationDistance = scrollSpeed * Mathf.Max(0.1f, scenarioDurationSeconds);
         OnLoopStarted?.Invoke(_loopIndex);
         OnScenarioStarted?.Invoke(0);
     }
@@ -217,10 +212,14 @@ public class ScenarioPathRunner : MonoBehaviour
 
     void BeginNextTransition()
     {
+        int outgoingSeed = TryGetScenario(_scenarioIndex, out ScenarioDefinition outgoing)
+            ? outgoing.seed
+            : Environment.TickCount;
+
         int nextIndex = _scenarioIndex + 1;
         bool startingNewLoop = false;
 
-        if (nextIndex >= scenarios.Length)
+        if (nextIndex >= ScenarioCount)
         {
             if (!loopOnComplete)
             {
@@ -228,11 +227,12 @@ public class ScenarioPathRunner : MonoBehaviour
                 return;
             }
 
-            // Same top-to-bottom reveal as any other scenario — just wrap to the first.
             OnPathCompleted?.Invoke();
             _loopIndex++;
             nextIndex = 0;
             startingNewLoop = true;
+            InitRunRng();
+            GenerateLoopScenarios();
         }
 
         _scenarioIndex = nextIndex;
@@ -240,10 +240,12 @@ public class ScenarioPathRunner : MonoBehaviour
         _isTransitioning = true;
         _currentDurationDistance = GetViewHeight();
 
-        ApplyScreenTransform(_incomingScreen, GetViewCenter(), GetScenarioColor(nextIndex));
-        _incomingScreen.sortingOrder = sortingOrder;
-        _incomingScreen.enabled = true;
-        _currentScreen.sortingOrder = sortingOrder + 1;
+        ApplyChunk(_incomingChunk, GetViewCenter(), nextIndex, sortingOrder);
+        _incomingChunk.gameObject.SetActive(true);
+        SetChunkSorting(_currentChunk, sortingOrder + 1);
+
+        // Cloud pile only on the dividing line (top edge of the outgoing chunk).
+        PlaceSeamCloudsOnCurrentTop(outgoingSeed);
 
         if (startingNewLoop)
         {
@@ -258,16 +260,18 @@ public class ScenarioPathRunner : MonoBehaviour
         _isTransitioning = false;
         _segmentTravel = 0f;
 
-        var previous = _currentScreen;
-        _currentScreen = _incomingScreen;
-        _incomingScreen = previous;
+        var previous = _currentChunk;
+        _currentChunk = _incomingChunk;
+        _incomingChunk = previous;
 
-        ApplyScreenTransform(_currentScreen, GetViewCenter(), _currentScreen.color);
-        _currentScreen.sortingOrder = sortingOrder + 1;
-        _incomingScreen.sortingOrder = sortingOrder;
-        _incomingScreen.enabled = false;
+        Vector3 center = GetViewCenter();
+        _currentChunk.position = new Vector3(center.x, center.y, transform.position.z);
+        SetChunkSorting(_currentChunk, sortingOrder + 1);
+        _currentChunk.gameObject.SetActive(true);
+        _incomingChunk.gameObject.SetActive(false);
+        ClearSeamClouds();
 
-        float fullDistance = scrollSpeed * Mathf.Max(0.1f, scenarios[_scenarioIndex].durationSeconds);
+        float fullDistance = scrollSpeed * Mathf.Max(0.1f, scenarioDurationSeconds);
         float holdDistance = Mathf.Max(0f, fullDistance - GetViewHeight());
         _currentDurationDistance = holdDistance;
 
@@ -287,57 +291,267 @@ public class ScenarioPathRunner : MonoBehaviour
         _isRunning = false;
         _completed = true;
         _isTransitioning = false;
+        ClearSeamClouds();
         OnPathCompleted?.Invoke();
     }
 
-    void CreateScreens()
+    void InitRunRng()
+    {
+        int seed = runSeed != 0
+            ? unchecked(runSeed + _loopIndex * 9973)
+            : unchecked(Environment.TickCount ^ (_loopIndex * 7919) ^ GetInstanceID());
+        _runRng = new System.Random(seed);
+    }
+
+    void GenerateLoopScenarios()
+    {
+        if (_runRng == null)
+        {
+            InitRunRng();
+        }
+
+        _generated.Clear();
+        int count = Mathf.Max(1, scenariosPerLoop);
+
+        // Randomize which kind starts this loop, then keep alternating.
+        ScenarioKind kind = _runRng.Next(0, 2) == 0 ? ScenarioKind.Planetary : ScenarioKind.Space;
+
+        for (int i = 0; i < count; i++)
+        {
+            _generated.Add(CreateScenario(kind, i));
+            kind = kind == ScenarioKind.Planetary ? ScenarioKind.Space : ScenarioKind.Planetary;
+        }
+    }
+
+    ScenarioDefinition CreateScenario(ScenarioKind kind, int indexInLoop)
+    {
+        // Bold rolls: solid or multi-stop feel via horizontal gradient.
+        bool useGradient = _runRng.NextDouble() < 0.62;
+        Color primary = RollBackgroundColor(kind);
+        Color secondary = RollBackgroundColor(kind);
+
+        if (useGradient)
+        {
+            // Force a readable contrast between gradient ends.
+            int guard = 0;
+            while (ColorsTooClose(primary, secondary) && guard++ < 8)
+            {
+                secondary = RollBackgroundColor(kind);
+            }
+
+            if (ColorsTooClose(primary, secondary))
+            {
+                Color.RGBToHSV(primary, out float h, out float s, out float v);
+                secondary = Color.HSVToRGB(
+                    (h + 0.18f + (float)_runRng.NextDouble() * 0.25f) % 1f,
+                    Mathf.Clamp01(s * 0.85f),
+                    Mathf.Clamp01(kind == ScenarioKind.Space ? v * 0.55f : v * 1.15f));
+            }
+        }
+
+        return new ScenarioDefinition
+        {
+            displayName = kind == ScenarioKind.Planetary
+                ? $"Planeta {_loopIndex}-{indexInLoop}"
+                : $"Espaco {_loopIndex}-{indexInLoop}",
+            kind = kind,
+            color = primary,
+            useGradient = useGradient,
+            gradientColor = secondary,
+            durationSeconds = scenarioDurationSeconds,
+            seed = _runRng.Next(1, int.MaxValue),
+        };
+    }
+
+    Color RollBackgroundColor(ScenarioKind kind)
+    {
+        float hue = (float)_runRng.NextDouble();
+
+        if (kind == ScenarioKind.Planetary)
+        {
+            // Punchy surface colors: any hue, usually vivid, never near-black.
+            float sat = LerpRng(0.45f, 1f);
+            float val = LerpRng(0.42f, 0.95f);
+
+            // Occasional pastel / neon extremes.
+            double style = _runRng.NextDouble();
+            if (style < 0.18)
+            {
+                sat = LerpRng(0.15f, 0.4f);
+                val = LerpRng(0.75f, 1f);
+            }
+            else if (style < 0.36)
+            {
+                sat = LerpRng(0.85f, 1f);
+                val = LerpRng(0.55f, 1f);
+            }
+
+            return Color.HSVToRGB(hue, sat, val);
+        }
+
+        // Space: dark but chromatic — deep teals, magentas, violets, crimson voids.
+        float spaceSat = LerpRng(0.35f, 1f);
+        float spaceVal = LerpRng(0.04f, 0.28f);
+
+        double spaceStyle = _runRng.NextDouble();
+        if (spaceStyle < 0.2)
+        {
+            // Near-black with a tint.
+            spaceSat = LerpRng(0.2f, 0.7f);
+            spaceVal = LerpRng(0.02f, 0.1f);
+        }
+        else if (spaceStyle < 0.4)
+        {
+            // Bold nebula glow (still darker than planetary).
+            spaceSat = LerpRng(0.7f, 1f);
+            spaceVal = LerpRng(0.16f, 0.38f);
+        }
+
+        return Color.HSVToRGB(hue, spaceSat, spaceVal);
+    }
+
+    float LerpRng(float a, float b)
+    {
+        return a + (float)_runRng.NextDouble() * (b - a);
+    }
+
+    static bool ColorsTooClose(Color a, Color b)
+    {
+        float dr = a.r - b.r;
+        float dg = a.g - b.g;
+        float db = a.b - b.b;
+        return (dr * dr + dg * dg + db * db) < 0.045f;
+    }
+
+    bool TryGetScenario(int index, out ScenarioDefinition scenario)
+    {
+        if (index >= 0 && index < _generated.Count)
+        {
+            scenario = _generated[index];
+            return scenario != null;
+        }
+
+        scenario = null;
+        return false;
+    }
+
+    void CreateChunks()
     {
         if (worldCamera == null)
         {
             worldCamera = Camera.main;
         }
 
-        EnsureWhiteSprite();
+        if (_chunkBuilder == null)
+        {
+            _chunkBuilder = GetComponent<ScenarioChunkBuilder>();
+        }
 
-        _currentScreen = CreateScreenObject("ScenarioCurrent");
-        _incomingScreen = CreateScreenObject("ScenarioIncoming");
-        _incomingScreen.enabled = false;
+        _currentChunk = CreateChunkObject("ScenarioCurrent");
+        _incomingChunk = CreateChunkObject("ScenarioIncoming");
+        _incomingChunk.gameObject.SetActive(false);
+
+        var seamGo = new GameObject("ScenarioSeamClouds");
+        seamGo.transform.SetParent(transform, false);
+        _seamClouds = seamGo.transform;
+        _seamClouds.gameObject.SetActive(false);
     }
 
-    SpriteRenderer CreateScreenObject(string objectName)
+    Transform CreateChunkObject(string objectName)
     {
         var go = new GameObject(objectName);
         go.transform.SetParent(transform, false);
-
-        var renderer = go.AddComponent<SpriteRenderer>();
-        renderer.sprite = _whiteSprite;
-        renderer.sortingOrder = sortingOrder;
-        return renderer;
+        // Keeps background + props as one visual unit so decorations never
+        // punch through the chunk in front during transitions.
+        go.AddComponent<SortingGroup>();
+        return go.transform;
     }
 
-    void ApplyScreenTransform(SpriteRenderer screen, Vector3 worldCenter, Color color)
+    void ApplyChunk(Transform chunk, Vector3 worldCenter, int scenarioIndex, int baseSorting)
     {
-        if (screen == null || worldCamera == null)
+        if (chunk == null || worldCamera == null || _chunkBuilder == null)
         {
             return;
         }
 
-        float width = GetViewWidth() + widthPadding * 2f;
-        float height = GetViewHeight() + widthPadding;
+        _chunkHalfWidth = GetViewWidth() * 0.5f + widthPadding;
+        _chunkHalfHeight = GetViewHeight() * 0.5f + widthPadding * 0.5f;
 
-        screen.transform.position = new Vector3(worldCenter.x, worldCenter.y, transform.position.z);
-        screen.transform.localScale = new Vector3(width, height, 1f);
-        screen.color = color;
-    }
+        chunk.position = new Vector3(worldCenter.x, worldCenter.y, transform.position.z);
+        chunk.rotation = Quaternion.identity;
+        chunk.localScale = Vector3.one;
+        SetChunkSorting(chunk, baseSorting);
 
-    Color GetScenarioColor(int index)
-    {
-        if (scenarios == null || index < 0 || index >= scenarios.Length)
+        if (!TryGetScenario(scenarioIndex, out ScenarioDefinition scenario))
         {
-            return Color.magenta;
+            return;
         }
 
-        return scenarios[index].color;
+        // Local sorting only (0,1,2...). Chunk order is owned by SortingGroup.
+        _chunkBuilder.Build(
+            chunk,
+            scenario,
+            _chunkHalfWidth,
+            _chunkHalfHeight,
+            baseSortingOrder: 0);
+    }
+
+    void PlaceSeamCloudsOnCurrentTop(int seed)
+    {
+        if (_seamClouds == null || _currentChunk == null || _chunkBuilder == null)
+        {
+            return;
+        }
+
+        Vector3 top = _currentChunk.position + Vector3.up * _chunkHalfHeight;
+        _seamClouds.position = new Vector3(top.x, top.y, _currentChunk.position.z);
+        _seamClouds.rotation = Quaternion.identity;
+        _seamClouds.localScale = Vector3.one;
+        _seamClouds.gameObject.SetActive(true);
+
+        if (!_seamClouds.TryGetComponent(out SortingGroup seamGroup))
+        {
+            seamGroup = _seamClouds.gameObject.AddComponent<SortingGroup>();
+        }
+
+        // Above player/enemies so the ship passes behind the cloud bank.
+        seamGroup.sortingOrder = cloudSeamSortingOrder;
+
+        _chunkBuilder.BuildCloudSeam(
+            _seamClouds,
+            unchecked(seed * 31 + 17),
+            _chunkHalfWidth,
+            baseSortingOrder: 0);
+    }
+
+    void ClearSeamClouds()
+    {
+        if (_seamClouds == null)
+        {
+            return;
+        }
+
+        for (int i = _seamClouds.childCount - 1; i >= 0; i--)
+        {
+            Destroy(_seamClouds.GetChild(i).gameObject);
+        }
+
+        _seamClouds.gameObject.SetActive(false);
+    }
+
+    static void SetChunkSorting(Transform chunk, int baseSorting)
+    {
+        if (chunk == null)
+        {
+            return;
+        }
+
+        if (!chunk.TryGetComponent(out SortingGroup group))
+        {
+            group = chunk.gameObject.AddComponent<SortingGroup>();
+        }
+
+        group.sortingOrder = baseSorting;
     }
 
     Vector3 GetViewCenter()
@@ -361,46 +575,17 @@ public class ScenarioPathRunner : MonoBehaviour
         return Mathf.Abs(worldCamera.transform.position.z - transform.position.z);
     }
 
-    void EnsureWhiteSprite()
-    {
-        if (_whiteSprite != null)
-        {
-            return;
-        }
-
-        _whiteTexture = new Texture2D(1, 1, TextureFormat.RGBA32, false);
-        _whiteTexture.name = "ScenarioWhiteTexture";
-        _whiteTexture.SetPixel(0, 0, Color.white);
-        _whiteTexture.Apply(false, true);
-
-        _whiteSprite = Sprite.Create(
-            _whiteTexture,
-            new Rect(0f, 0f, 1f, 1f),
-            new Vector2(0.5f, 0.5f),
-            1f);
-        _whiteSprite.name = "ScenarioWhiteSprite";
-    }
-
 #if UNITY_EDITOR
     void OnValidate()
     {
-        if (scenarios == null || scenarios.Length == 0)
-        {
-            scenarios = CreateDefaultScenarios();
-            return;
-        }
-
-        for (int i = 0; i < scenarios.Length; i++)
-        {
-            if (scenarios[i] == null)
-            {
-                scenarios[i] = new ScenarioDefinition();
-            }
-
-            scenarios[i].durationSeconds = Mathf.Max(0.1f, scenarios[i].durationSeconds);
-        }
-
+        scenariosPerLoop = Mathf.Max(1, scenariosPerLoop);
+        scenarioDurationSeconds = Mathf.Max(0.1f, scenarioDurationSeconds);
         scrollSpeed = Mathf.Max(0.01f, scrollSpeed);
+
+        if (_chunkBuilder == null)
+        {
+            _chunkBuilder = GetComponent<ScenarioChunkBuilder>();
+        }
     }
 #endif
 }

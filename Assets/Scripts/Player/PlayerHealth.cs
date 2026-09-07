@@ -35,6 +35,9 @@ public class PlayerHealth : MonoBehaviour
     public bool IsInvulnerable => _invulnerabilityRoutine != null;
     public PlayerForceShield ForceShield => forceShield;
 
+    /// <summary>When true, kamikaze / collision enemies do not deal contact damage.</summary>
+    public bool IgnoresEnemyCollisionDamage { get; set; }
+
     /// <summary>Missing health as 0..1 (0 = full, 1 = nearly dead / dead).</summary>
     public float MissingHealth01 => maxHealth <= 0 ? 0f : 1f - (Mathf.Clamp01((float)currentHealth / maxHealth));
 

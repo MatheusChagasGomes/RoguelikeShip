@@ -48,14 +48,17 @@ public class PlayerUpgradeController : MonoBehaviour
 
     void EnsureUpgrades()
     {
+        UpgradeDefinition[] defaults = UpgradeDefinition.CreateDefaults();
+
         if (upgrades == null || upgrades.Length == 0)
         {
-            upgrades = UpgradeDefinition.CreateDefaults();
+            upgrades = defaults;
             return;
         }
 
-        // Drop removed upgrades (e.g. Stability / Mega) left in serialized lists.
         var kept = new List<UpgradeDefinition>(upgrades.Length);
+        var existingIds = new HashSet<UpgradeId>();
+
         for (int i = 0; i < upgrades.Length; i++)
         {
             UpgradeDefinition entry = upgrades[i];
@@ -65,18 +68,19 @@ public class PlayerUpgradeController : MonoBehaviour
             }
 
             kept.Add(entry);
+            existingIds.Add(entry.id);
         }
 
-        if (kept.Count == 0)
+        for (int i = 0; i < defaults.Length; i++)
         {
-            upgrades = UpgradeDefinition.CreateDefaults();
-            return;
+            UpgradeDefinition defaultEntry = defaults[i];
+            if (!existingIds.Contains(defaultEntry.id))
+            {
+                kept.Add(defaultEntry);
+            }
         }
 
-        if (kept.Count != upgrades.Length)
-        {
-            upgrades = kept.ToArray();
-        }
+        upgrades = kept.Count > 0 ? kept.ToArray() : defaults;
     }
 
     static bool IsSupported(UpgradeId id)
@@ -87,13 +91,20 @@ public class PlayerUpgradeController : MonoBehaviour
             case UpgradeId.HeavyArmor:
             case UpgradeId.LightArmor:
             case UpgradeId.ForceShield:
+            case UpgradeId.ExplosiveShield:
+            case UpgradeId.CombatRam:
             case UpgradeId.ReinforcedThrusters:
             case UpgradeId.EmergencyFuel:
+            case UpgradeId.StabilityThruster:
+            case UpgradeId.CometTail:
+            case UpgradeId.Dragonfly:
             case UpgradeId.DoubleCannon:
             case UpgradeId.ExplosiveAmmo:
             case UpgradeId.Piercing:
             case UpgradeId.Automata:
             case UpgradeId.ReinforcedCannon:
+            case UpgradeId.GlassCannon:
+            case UpgradeId.Shrapnel:
                 return true;
             default:
                 return false;
@@ -144,6 +155,11 @@ public class PlayerUpgradeController : MonoBehaviour
             return false;
         }
 
+        if (!MeetsPrerequisites(definition))
+        {
+            return false;
+        }
+
         ResolveReferences();
         ApplyEffect(definition);
         _owned.Add(id);
@@ -158,13 +174,31 @@ public class PlayerUpgradeController : MonoBehaviour
         for (int i = 0; i < upgrades.Length; i++)
         {
             UpgradeDefinition entry = upgrades[i];
-            if (entry == null || _owned.Contains(entry.id))
+            if (entry == null || _owned.Contains(entry.id) || !MeetsPrerequisites(entry))
             {
                 continue;
             }
 
             buffer.Add(entry);
         }
+    }
+
+    bool MeetsPrerequisites(UpgradeDefinition definition)
+    {
+        if (definition.prerequisites == null || definition.prerequisites.Length == 0)
+        {
+            return true;
+        }
+
+        for (int i = 0; i < definition.prerequisites.Length; i++)
+        {
+            if (!_owned.Contains(definition.prerequisites[i]))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     void ApplyEffect(UpgradeDefinition definition)
@@ -182,6 +216,16 @@ public class PlayerUpgradeController : MonoBehaviour
             GrantForceShield(cooldown);
         }
 
+        if (definition.shieldExplosionRadius > 0f && definition.shieldExplosionDamage > 0)
+        {
+            GrantExplosiveShield(definition.shieldExplosionRadius, definition.shieldExplosionDamage);
+        }
+
+        if (definition.grantCombatRam)
+        {
+            GrantCombatRam(definition.combatRamHealthFraction);
+        }
+
         if (playerMovement != null)
         {
             if (!Mathf.Approximately(definition.moveSpeedMultiplier, 1f)
@@ -189,6 +233,23 @@ public class PlayerUpgradeController : MonoBehaviour
             {
                 playerMovement.SetMoveSpeedMultiplier(
                     playerMovement.MoveSpeedMultiplier * definition.moveSpeedMultiplier);
+            }
+
+            if (definition.instantMovement)
+            {
+                playerMovement.SetInstantMovement(true);
+            }
+            else if (definition.movementResponsivenessMultiplier > 1f)
+            {
+                playerMovement.SetMovementResponsiveness(definition.movementResponsivenessMultiplier);
+            }
+
+            if (definition.grantCometTail)
+            {
+                GrantCometTail(
+                    definition.cometTailRadius,
+                    definition.cometTailDamage,
+                    definition.cometTailSpacing);
             }
         }
 
@@ -221,6 +282,14 @@ public class PlayerUpgradeController : MonoBehaviour
             {
                 playerShooting.SetExplosion(definition.explosionRadius, definition.explosionDamage);
             }
+
+            if (definition.grantShrapnel)
+            {
+                playerShooting.SetShrapnel(
+                    definition.shrapnelCount,
+                    definition.shrapnelSpeed,
+                    definition.shrapnelDamage);
+            }
         }
 
         if (definition.droneCount > 0)
@@ -249,6 +318,51 @@ public class PlayerUpgradeController : MonoBehaviour
         }
 
         visual.Bind(shield);
+    }
+
+    void GrantExplosiveShield(float radius, int damage)
+    {
+        if (playerHealth == null)
+        {
+            return;
+        }
+
+        if (!playerHealth.TryGetComponent(out PlayerExplosiveShield explosiveShield))
+        {
+            explosiveShield = playerHealth.gameObject.AddComponent<PlayerExplosiveShield>();
+        }
+
+        explosiveShield.Configure(radius, damage);
+    }
+
+    void GrantCombatRam(float healthFraction)
+    {
+        if (playerHealth == null)
+        {
+            return;
+        }
+
+        if (!playerHealth.TryGetComponent(out PlayerCombatRam combatRam))
+        {
+            combatRam = playerHealth.gameObject.AddComponent<PlayerCombatRam>();
+        }
+
+        combatRam.Configure(playerHealth, healthFraction);
+    }
+
+    void GrantCometTail(float radius, int damage, float spacing)
+    {
+        if (playerMovement == null)
+        {
+            return;
+        }
+
+        if (!playerMovement.TryGetComponent(out PlayerCometTail cometTail))
+        {
+            cometTail = playerMovement.gameObject.AddComponent<PlayerCometTail>();
+        }
+
+        cometTail.Configure(playerMovement.transform, radius, damage, spacing);
     }
 
     void HandleHealthChanged(int current, int max)

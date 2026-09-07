@@ -9,6 +9,9 @@ public class EnemySpawner : MonoBehaviour
 {
     [Header("Spawn")]
     [SerializeField] GameObject enemyPrefab;
+    [SerializeField] GameObject kamikazeEnemyPrefab;
+    [Tooltip("Chance (0-1) to spawn a kamikaze enemy instead of the default shooter.")]
+    [SerializeField] [Range(0f, 1f)] float kamikazeSpawnChance = 0.3f;
     [SerializeField] [Min(0.1f)] float spawnInterval = 2.5f;
     [SerializeField] [Min(0f)] float initialDelay = 1f;
     [SerializeField] [Min(1)] int maxAlive = 6;
@@ -114,8 +117,14 @@ public class EnemySpawner : MonoBehaviour
 
     void SpawnEnemy()
     {
+        GameObject prefab = ChooseEnemyPrefab();
+        if (prefab == null)
+        {
+            return;
+        }
+
         Vector2 spawnPosition = GetSpawnPosition();
-        GameObject enemy = Instantiate(enemyPrefab, spawnPosition, enemyPrefab.transform.rotation);
+        GameObject enemy = Instantiate(prefab, spawnPosition, prefab.transform.rotation);
 
         if (enemy.TryGetComponent(out EnemyHealth health))
         {
@@ -133,6 +142,21 @@ public class EnemySpawner : MonoBehaviour
                 _enemyProjectileSpeedScale,
                 _enemyEnterSpeedScale);
         }
+
+        if (enemy.TryGetComponent(out EnemyTwo enemyTwo))
+        {
+            enemyTwo.ApplyDifficultyScaling(_enemyEnterSpeedScale);
+        }
+    }
+
+    GameObject ChooseEnemyPrefab()
+    {
+        if (kamikazeEnemyPrefab != null && kamikazeSpawnChance > 0f && Random.value < kamikazeSpawnChance)
+        {
+            return kamikazeEnemyPrefab;
+        }
+
+        return enemyPrefab;
     }
 
     void OnEnemyDied()

@@ -26,6 +26,8 @@ public class PlayerMovement : MonoBehaviour
     float _moveSpeedMultiplier = 1f;
     float _emergencyFuelBonus;
     bool _emergencyFuelEnabled;
+    float _responsivenessMultiplier = 1f;
+    bool _instantMovement;
 
     /// <summary>True while the player is holding the pointer/finger to move.</summary>
     public bool IsControlling => _isDragging;
@@ -119,6 +121,18 @@ public class PlayerMovement : MonoBehaviour
         ApplyMovementMultipliers();
     }
 
+    /// <summary>Multiplies catch-up speed toward the finger (higher = less movement delay).</summary>
+    public void SetMovementResponsiveness(float multiplier)
+    {
+        _responsivenessMultiplier = Mathf.Max(1f, multiplier);
+    }
+
+    /// <summary>When true, the ship snaps instantly to the target position.</summary>
+    public void SetInstantMovement(bool enabled)
+    {
+        _instantMovement = enabled;
+    }
+
     void ApplyMovementMultipliers()
     {
         float speedMul = _moveSpeedMultiplier * (1f + (_emergencyFuelEnabled ? _emergencyFuelBonus : 0f));
@@ -127,15 +141,28 @@ public class PlayerMovement : MonoBehaviour
 
     void MoveTowardsTarget(float deltaTime)
     {
-        Vector2 nextPosition = Vector2.MoveTowards(CurrentPosition(), _targetPosition, followSpeed * deltaTime);
+        Vector2 current = CurrentPosition();
 
-        if (_body != null)
+        if (_instantMovement)
         {
-            _body.MovePosition(nextPosition);
+            SetPosition(_targetPosition);
             return;
         }
 
-        transform.position = new Vector3(nextPosition.x, nextPosition.y, transform.position.z);
+        float maxStep = followSpeed * deltaTime * _responsivenessMultiplier;
+        Vector2 nextPosition = Vector2.MoveTowards(current, _targetPosition, maxStep);
+        SetPosition(nextPosition);
+    }
+
+    void SetPosition(Vector2 position)
+    {
+        if (_body != null)
+        {
+            _body.MovePosition(position);
+            return;
+        }
+
+        transform.position = new Vector3(position.x, position.y, transform.position.z);
     }
 
     Vector2 CurrentPosition()

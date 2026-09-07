@@ -6,11 +6,15 @@ public enum UpgradeId
     HeavyArmor = 1,
     LightArmor = 2,
     ForceShield = 3,
+    ExplosiveShield = 13,
+    CombatRam = 14,
 
     // Engine
     ReinforcedThrusters = 4,
     EmergencyFuel = 5,
-    // 6–7 were StabilityThruster / MegaThruster (removed)
+    StabilityThruster = 6,
+    CometTail = 15,
+    Dragonfly = 16,
 
     // Weapons
     DoubleCannon = 8,
@@ -18,4 +22,6 @@ public enum UpgradeId
     Piercing = 10,
     Automata = 11,
     ReinforcedCannon = 12,
+    GlassCannon = 17,
+    Shrapnel = 18,
 }
