@@ -23,6 +23,10 @@ public class PlayerShooting : MonoBehaviour
     int _pierceCount;
     float _explosionRadius;
     int _explosionDamage;
+    bool _shrapnelEnabled;
+    int _shrapnelCount;
+    float _shrapnelSpeed;
+    int _shrapnelDamage;
 
     public PlayerProjectile ProjectilePrefab => projectilePrefab;
     public float ProjectileSpeed => projectileSpeed;
@@ -84,6 +88,14 @@ public class PlayerShooting : MonoBehaviour
         _explosionDamage = Mathf.Max(0, areaDamage);
     }
 
+    public void SetShrapnel(int count, float speed, int damage)
+    {
+        _shrapnelEnabled = count > 0 && damage > 0;
+        _shrapnelCount = Mathf.Max(0, count);
+        _shrapnelSpeed = Mathf.Max(0.1f, speed);
+        _shrapnelDamage = Mathf.Max(0, damage);
+    }
+
     void Fire()
     {
         if (projectilePrefab == null)
@@ -114,7 +126,15 @@ public class PlayerShooting : MonoBehaviour
     void SpawnProjectile(Vector2 spawnPosition)
     {
         PlayerProjectile projectile = Instantiate(projectilePrefab, spawnPosition, Quaternion.identity);
-        projectile.Configure(_projectileDamage, _pierceCount, _explosionRadius, _explosionDamage);
+        projectile.Configure(
+            _projectileDamage,
+            _pierceCount,
+            _explosionRadius,
+            _explosionDamage,
+            _shrapnelEnabled,
+            _shrapnelCount,
+            _shrapnelSpeed,
+            _shrapnelDamage);
         projectile.Launch(spawnPosition, fireDirection, projectileSpeed);
     }
 }

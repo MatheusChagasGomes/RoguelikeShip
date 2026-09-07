@@ -444,7 +444,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.078454, z: 0}
-  m_LocalScale: {x: 0.1952771, y: 0.1952771, z: 0.1952771}
+  m_LocalScale: {x: 0.15730546, y: 0.15730546, z: 0.15730546}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2029877583}
@@ -563,12 +563,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1964dab08e0f91941b15a7a961e822ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 100
+  maxHealth: 500
   fillOnAwake: 1
-  currentHealth: 100
+  currentHealth: 500
   invulnerabilityDuration: 1
   blinkInterval: 0.08
   spriteRenderer: {fileID: 0}
+  forceShield: {fileID: 0}
 --- !u!1 &1876543201
 GameObject:
   m_ObjectHideFlags: 0
@@ -579,6 +580,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1876543203}
   - component: {fileID: 1876543202}
+  - component: {fileID: 1876543206}
   - component: {fileID: 1876543204}
   - component: {fileID: 1876543205}
   m_Layer: 0
@@ -600,31 +602,49 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7e2d4a81c5f4e9b8a6d3c0f1e4b7a93, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScenarioPathRunner
-  scenarios:
-  - displayName: Azul
-    color: {r: 0.25, g: 0.55, b: 0.95, a: 1}
-    durationSeconds: 8
-  - displayName: Amarelo
-    color: {r: 0.95, g: 0.85, b: 0.25, a: 1}
-    durationSeconds: 8
-  - displayName: Roxo
-    color: {r: 0.65, g: 0.3, b: 0.9, a: 1}
-    durationSeconds: 8
-  - displayName: Laranja
-    color: {r: 0.95, g: 0.5, b: 0.2, a: 1}
-    durationSeconds: 8
-  - displayName: Cinza
-    color: {r: 0.45, g: 0.45, b: 0.48, a: 1}
-    durationSeconds: 8
-  - displayName: Verde
-    color: {r: 0.25, g: 0.75, b: 0.35, a: 1}
-    durationSeconds: 8
+  scenariosPerLoop: 6
+  scenarioDurationSeconds: 8
+  runSeed: 0
   scrollSpeed: 3
   widthPadding: 1
   sortingOrder: -100
+  cloudSeamSortingOrder: 50
   worldCamera: {fileID: 519420031}
   autoStart: 1
   loopOnComplete: 1
+--- !u!114 &1876543206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1876543201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4e8a2f19b7d4e6a8c0d3f5a1b9e7d24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioChunkBuilder
+  plateauSprites: []
+  craterSprites: []
+  starSprites: []
+  cloudSprites: []
+  plateauCount: {x: 4, y: 7}
+  craterCount: {x: 6, y: 11}
+  plateauWorldWidth: {x: 0.38, y: 0.95}
+  craterWorldWidth: {x: 0.22, y: 0.65}
+  planetaryMinGap: 0.35
+  starCount: {x: 50, y: 85}
+  starWorldWidth: {x: 0.03, y: 0.14}
+  starMinGap: 0.08
+  cloudsPerSeam: {x: 60, y: 85}
+  cloudWorldWidth: {x: 2.2, y: 4.8}
+  cloudSeamThickness: 2
+  cloudSeamRows: 7
+  backgroundOrderOffset: 0
+  craterOrderOffset: 1
+  plateauOrderOffset: 2
+  starOrderOffset: 1
+  cloudOrderOffset: 10
 --- !u!4 &1876543203
 Transform:
   m_ObjectHideFlags: 0
@@ -685,12 +705,14 @@ MonoBehaviour:
     description: "Aumenta a vida m\xE1xima."
     maxHealthDelta: 20
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 1
     category: 0
@@ -698,12 +720,14 @@ MonoBehaviour:
     description: "Aumenta muito a vida m\xE1xima, mas diminui a velocidade."
     maxHealthDelta: 40
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 0.8
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 2
     category: 0
@@ -711,12 +735,14 @@ MonoBehaviour:
     description: "Diminui um pouco a vida m\xE1xima, mas aumenta a velocidade."
     maxHealthDelta: -15
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1.25
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 3
     category: 0
@@ -731,6 +757,7 @@ MonoBehaviour:
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 4
     category: 1
@@ -738,12 +765,14 @@ MonoBehaviour:
     description: Aumenta a velocidade de movimento.
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1.25
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 5
     category: 1
@@ -751,12 +780,14 @@ MonoBehaviour:
     description: "Aumenta a velocidade conforme a vida \xE9 perdida."
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0.5
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 8
     category: 2
@@ -764,12 +795,14 @@ MonoBehaviour:
     description: "Atira 2 proj\xE9teis ao inv\xE9s de apenas 1."
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 2
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 9
     category: 2
@@ -777,6 +810,7 @@ MonoBehaviour:
     description: "Proj\xE9teis explodem ao contato."
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 1
@@ -791,12 +825,14 @@ MonoBehaviour:
     description: "Proj\xE9teis perfuram 1 inimigo."
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 1
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
   - id: 11
     category: 2
@@ -804,12 +840,14 @@ MonoBehaviour:
     description: Drones auxiliares que atiram nos inimigos.
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 2
   - id: 12
     category: 2
@@ -817,12 +855,14 @@ MonoBehaviour:
     description: "Aumenta o dano do proj\xE9til."
     maxHealthDelta: 0
     grantForceShield: 0
+    forceShieldCooldownSeconds: 10
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
     projectileCount: 1
     projectileDamageBonus: 1
     pierceCount: 0
     explosionRadius: 0
+    explosionDamage: 0
     droneCount: 0
 --- !u!1 &1988774401
 GameObject:
@@ -869,6 +909,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameHud
   pathRunner: {fileID: 1876543202}
+  playerHealth: {fileID: 0}
+  healthLabelFormat: '{0}/{1}'
   loopLabelFormat: 'Loop: {0}'
   referenceResolution: {x: 1080, y: 1920}
   matchWidthOrHeight: 0
@@ -950,6 +992,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpawner
   enemyPrefab: {fileID: 1020072273346060961, guid: 4dff1be94dc4d1640903fc9d0fdc9ce6, type: 3}
+  kamikazeEnemyPrefab: {fileID: 1020072273346060962, guid: 8a3f2c1d9e7b6a5c4d3e2f1a0b9c8d7e, type: 3}
+  kamikazeSpawnChance: 0.3
   spawnInterval: 2.5
   initialDelay: 1
   maxAlive: 6

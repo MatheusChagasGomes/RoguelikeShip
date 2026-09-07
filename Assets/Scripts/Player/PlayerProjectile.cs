@@ -21,6 +21,12 @@ public class PlayerProjectile : MonoBehaviour
     [SerializeField] LayerMask explosionMask = ~0;
     [SerializeField] Color explosionPulseColor = new Color(1f, 0.55f, 0.2f, 0.45f);
 
+    [Header("Shrapnel")]
+    [SerializeField] bool shrapnelEnabled;
+    [SerializeField] [Min(0)] int shrapnelCount;
+    [SerializeField] [Min(0.1f)] float shrapnelSpeed = 9f;
+    [SerializeField] [Min(0)] int shrapnelDamage = 1;
+
     [Header("Lifetime")]
     [Tooltip("Destroy when this far outside the camera view (world units).")]
     [SerializeField] [Min(0f)] float despawnPadding = 1f;
@@ -42,12 +48,24 @@ public class PlayerProjectile : MonoBehaviour
         }
     }
 
-    public void Configure(int projectileDamage, int pierceCount, float explosionRadiusWorld, int explosionDamageAmount)
+    public void Configure(
+        int projectileDamage,
+        int pierceCount,
+        float explosionRadiusWorld,
+        int explosionDamageAmount,
+        bool enableShrapnel = false,
+        int debrisCount = 0,
+        float debrisSpeed = 9f,
+        int debrisDamage = 1)
     {
         damage = Mathf.Max(1, projectileDamage);
         pierceRemaining = Mathf.Max(0, pierceCount);
         explosionRadius = Mathf.Max(0f, explosionRadiusWorld);
         explosionDamage = Mathf.Max(0, explosionDamageAmount);
+        shrapnelEnabled = enableShrapnel;
+        shrapnelCount = Mathf.Max(0, debrisCount);
+        shrapnelSpeed = Mathf.Max(0.1f, debrisSpeed);
+        shrapnelDamage = Mathf.Max(0, debrisDamage);
     }
 
     void Awake()
@@ -109,22 +127,25 @@ public class PlayerProjectile : MonoBehaviour
 
     void Detonate(Vector3 center, EnemyHealth primaryHit)
     {
-        ExplosionPulse.Spawn(center, explosionRadius, explosionPulseColor);
+        AreaDamage.Apply(center, explosionRadius, explosionDamage, explosionPulseColor, primaryHit);
 
-        Collider2D[] hits = Physics2D.OverlapCircleAll(center, explosionRadius, explosionMask);
-        for (int i = 0; i < hits.Length; i++)
+        if (shrapnelEnabled && shrapnelCount > 0 && shrapnelDamage > 0)
         {
-            if (!hits[i].TryGetComponent(out EnemyHealth enemyHealth))
-            {
-                continue;
-            }
+            SpawnShrapnel(center);
+        }
+    }
 
-            if (enemyHealth == primaryHit)
-            {
-                continue;
-            }
+    void SpawnShrapnel(Vector3 center)
+    {
+        float arcStart = -75f;
+        float arcSpan = 150f;
 
-            enemyHealth.TakeDamage(explosionDamage);
+        for (int i = 0; i < shrapnelCount; i++)
+        {
+            float t = shrapnelCount == 1 ? 0.5f : (float)i / (shrapnelCount - 1);
+            float angle = (arcStart + arcSpan * t) * Mathf.Deg2Rad;
+            Vector2 debrisDirection = new Vector2(Mathf.Sin(angle), Mathf.Cos(angle));
+            ShrapnelProjectile.Launch(center, debrisDirection, shrapnelSpeed, shrapnelDamage);
         }
     }
 

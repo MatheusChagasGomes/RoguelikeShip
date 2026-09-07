@@ -21,6 +21,9 @@ public class PlayerForceShield : MonoBehaviour
     /// <summary>Invoked when readiness changes (granted, absorbed, or recharged).</summary>
     public event Action Changed;
 
+    /// <summary>Invoked when a hit is absorbed. Arg: world position of the shield break.</summary>
+    public event Action<Vector3> Absorbed;
+
     void OnDisable()
     {
         StopCooldown();
@@ -57,6 +60,7 @@ public class PlayerForceShield : MonoBehaviour
         }
 
         SetReady(false);
+        Absorbed?.Invoke(transform.position);
 
         if (_enabled && _cooldownSeconds > 0f && isActiveAndEnabled)
         {
