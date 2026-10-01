@@ -484,6 +484,8 @@ MonoBehaviour:
   fireDirection: {x: 0, y: 1}
   projectileSpeed: 14
   multiShotSpacing: 0.35
+  magazineSize: 20
+  magazineCooldown: 3
 --- !u!60 &1155936077
 PolygonCollider2D:
   m_ObjectHideFlags: 0
@@ -563,9 +565,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1964dab08e0f91941b15a7a961e822ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlayerHealth
-  maxHealth: 500
+  maxHealth: 300
   fillOnAwake: 1
-  currentHealth: 500
+  currentHealth: 300
   invulnerabilityDuration: 1
   blinkInterval: 0.08
   spriteRenderer: {fileID: 0}
@@ -603,48 +605,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ScenarioPathRunner
   scenariosPerLoop: 6
-  scenarioDurationSeconds: 8
+  scenarioDurationSeconds: 20
   runSeed: 0
   scrollSpeed: 3
+  minChunkHeightScreens: 2.5
   widthPadding: 1
   sortingOrder: -100
   cloudSeamSortingOrder: 50
   worldCamera: {fileID: 519420031}
   autoStart: 1
   loopOnComplete: 1
---- !u!114 &1876543206
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1876543201}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c4e8a2f19b7d4e6a8c0d3f5a1b9e7d24, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ScenarioChunkBuilder
-  plateauSprites: []
-  craterSprites: []
-  starSprites: []
-  cloudSprites: []
-  plateauCount: {x: 4, y: 7}
-  craterCount: {x: 6, y: 11}
-  plateauWorldWidth: {x: 0.38, y: 0.95}
-  craterWorldWidth: {x: 0.22, y: 0.65}
-  planetaryMinGap: 0.35
-  starCount: {x: 50, y: 85}
-  starWorldWidth: {x: 0.03, y: 0.14}
-  starMinGap: 0.08
-  cloudsPerSeam: {x: 60, y: 85}
-  cloudWorldWidth: {x: 2.2, y: 4.8}
-  cloudSeamThickness: 2
-  cloudSeamRows: 7
-  backgroundOrderOffset: 0
-  craterOrderOffset: 1
-  plateauOrderOffset: 2
-  starOrderOffset: 1
-  cloudOrderOffset: 10
 --- !u!4 &1876543203
 Transform:
   m_ObjectHideFlags: 0
@@ -703,167 +673,1376 @@ MonoBehaviour:
     category: 0
     displayName: "Placas de tit\xE2nio"
     description: "Aumenta a vida m\xE1xima."
+    prerequisites: 
     maxHealthDelta: 20
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 1
     category: 0
     displayName: Blindagem pesada
     description: "Aumenta muito a vida m\xE1xima, mas diminui a velocidade."
+    prerequisites: 
     maxHealthDelta: 40
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 0.8
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 2
     category: 0
     displayName: Blindagem leve
     description: "Diminui um pouco a vida m\xE1xima, mas aumenta a velocidade."
+    prerequisites: 
     maxHealthDelta: -15
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1.25
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 3
     category: 0
     displayName: "Escudo de for\xE7a"
     description: "Ignora o primeiro dano recebido. Recarrega ap\xF3s um cooldown."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 1
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 4
     category: 1
     displayName: "Propulsores refor\xE7ados"
     description: Aumenta a velocidade de movimento.
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1.25
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 5
     category: 1
     displayName: "Combust\xEDvel de emerg\xEAncia"
     description: "Aumenta a velocidade conforme a vida \xE9 perdida."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0.5
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 8
     category: 2
     displayName: "Canh\xE3o duplo"
     description: "Atira 2 proj\xE9teis ao inv\xE9s de apenas 1."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 2
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 9
     category: 2
     displayName: "Muni\xE7\xE3o explosiva"
     description: "Proj\xE9teis explodem ao contato."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 1.25
     explosionDamage: 1
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 10
     category: 2
     displayName: "Perfura\xE7\xE3o"
     description: "Proj\xE9teis perfuram 1 inimigo."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 1
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 11
     category: 2
     displayName: "Aut\xF4matos"
-    description: Drones auxiliares que atiram nos inimigos.
+    description: Drone auxiliar que bloqueia tiros inimigos e causa dano ao contato.
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 0
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
-    droneCount: 2
+    droneCount: 1
+    droneRole: 1
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
   - id: 12
     category: 2
     displayName: "Canh\xE3o refor\xE7ado"
     description: "Aumenta o dano do proj\xE9til."
+    prerequisites: 
     maxHealthDelta: 0
     grantForceShield: 0
     forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
     moveSpeedMultiplier: 1
     emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
     projectileCount: 1
     projectileDamageBonus: 1
     pierceCount: 0
     explosionRadius: 0
     explosionDamage: 0
     droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 13
+    category: 0
+    displayName: Escudo explosivo
+    description: "Ao perder o escudo, ele explode causando dano em \xE1rea."
+    prerequisites: 03000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 1.5
+    shieldExplosionDamage: 2
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 14
+    category: 0
+    displayName: "M\xE1quina de combate"
+    description: "Causa dano em inimigos ao colidir e colidir n\xE3o causa dano ao
+      jogador. O dano \xE9 baseado na vida m\xE1xima."
+    prerequisites: 0000000001000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 1
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 6
+    category: 1
+    displayName: Propulsor de estabilidade
+    description: Reduz o atraso entre o toque e o movimento da nave.
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 4
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 15
+    category: 1
+    displayName: Cauda de cometa
+    description: Deixa um rastro de fogo por onde passar, causando dano.
+    prerequisites: 04000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 1
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 16
+    category: 1
+    displayName: "Lib\xE9lula"
+    description: Delay de movimento zerado.
+    prerequisites: 06000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 1
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 17
+    category: 2
+    displayName: "Canh\xE3o de vidro"
+    description: "Aumenta muito o dano, mas diminui muito a vida m\xE1xima."
+    prerequisites: 020000000c000000
+    maxHealthDelta: -25
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 3
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 18
+    category: 2
+    displayName: "Estilha\xE7os"
+    description: "Quando o proj\xE9til explodir no alvo, uma onda de destro\xE7os
+      \xE9 arremessada, causando dano em inimigos."
+    prerequisites: 09000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 1
+    shrapnelCount: 6
+    shrapnelSpeed: 9
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 19
+    category: 0
+    displayName: "N\xFAcleo reserva"
+    description: Ao morrer, restaura uma pequena quantidade de vida e continua vivo
+      uma vez.
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 1
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 26
+    category: 0
+    displayName: "S\xF3 mais uma vez"
+    description: "Adiciona mais uma carga de ressurrei\xE7\xE3o."
+    prerequisites: 13000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 1
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 20
+    category: 1
+    displayName: Prioridades
+    description: "Aumenta consideravelmente a velocidade, mas diminui o n\xFAmero
+      de balas no pente."
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1.5
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: -5
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 21
+    category: 2
+    displayName: "Muni\xE7\xE3o perseguidora"
+    description: "Proj\xE9teis corrigem levemente sua trajet\xF3ria em dire\xE7\xE3o
+      aos inimigos."
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 1
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 22
+    category: 2
+    displayName: Recarga
+    description: Diminui o tempo de recarga das armas.
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 0.6
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 23
+    category: 2
+    displayName: Carta na manga
+    description: "A \xFAltima bala causa dano extra, mas diminui a quantidade de
+      balas no pente."
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: -3
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 2
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 24
+    category: 2
+    displayName: "Pot\xEAncia na primeira"
+    description: A primeira bala causa dano extra, mas diminui a quantidade de balas
+      no pente.
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: -3
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 2
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 25
+    category: 2
+    displayName: Pente estendido
+    description: Aumenta a quantidade de balas no pente.
+    prerequisites: 
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 5
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 27
+    category: 2
+    displayName: Pequeno e corajoso
+    description: "Recebe um aut\xF4mato extra que se lan\xE7a em inimigos. Cooldown
+      de 5 segundos."
+    prerequisites: 0b000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 1
+    droneRole: 2
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 28
+    category: 2
+    displayName: Ajudante de artilharia
+    description: "Recebe um aut\xF4mato extra que atira em inimigos."
+    prerequisites: 0b000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 1
+    droneRole: 3
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 29
+    category: 2
+    displayName: "M\xE9dico de combate"
+    description: "Recebe um aut\xF4mato adicional que cura sua vida em 1 ponto a
+      cada 2 segundos."
+    prerequisites: 0b000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 1
+    droneRole: 4
+    grantPackLeader: 0
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+  - id: 30
+    category: 2
+    displayName: "L\xEDder do bando"
+    description: "Seus aut\xF4matos alcan\xE7am um n\xEDvel superior. Aprimora o
+      poder de todos os aut\xF4matos."
+    prerequisites: 0b0000001d0000001b0000001c000000
+    maxHealthDelta: 0
+    grantForceShield: 0
+    forceShieldCooldownSeconds: 10
+    shieldExplosionRadius: 0
+    shieldExplosionDamage: 0
+    grantCombatRam: 0
+    combatRamHealthFraction: 0.1
+    grantResurrection: 0
+    resurrectionCharges: 1
+    resurrectionHealAmount: 2
+    moveSpeedMultiplier: 1
+    emergencyFuelMaxBonus: 0
+    movementResponsivenessMultiplier: 1
+    instantMovement: 0
+    grantCometTail: 0
+    cometTailRadius: 0.55
+    cometTailDamage: 1
+    cometTailSpacing: 0.22
+    projectileCount: 1
+    projectileDamageBonus: 0
+    pierceCount: 0
+    explosionRadius: 0
+    explosionDamage: 0
+    droneCount: 0
+    droneRole: 0
+    grantPackLeader: 1
+    grantShrapnel: 0
+    shrapnelCount: 0
+    shrapnelSpeed: 8
+    shrapnelDamage: 1
+    magazineSizeDelta: 0
+    magazineCooldownMultiplier: 1
+    firstShotDamageBonus: 0
+    lastShotDamageBonus: 0
+    grantHoming: 0
+    homingTurnRate: 80
+    homingRange: 7
+--- !u!114 &1876543206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1876543201}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4e8a2f19b7d4e6a8c0d3f5a1b9e7d24, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ScenarioChunkBuilder
+  plateauSprites:
+  - {fileID: 21300000, guid: 087575fb41f31df4cb0b3d9c43385939, type: 3}
+  - {fileID: 21300000, guid: 830e47f2c6b33f64899344363e332e2d, type: 3}
+  - {fileID: 21300000, guid: d01785f9c9c0e2e4c835a6f937f51ff1, type: 3}
+  - {fileID: 21300000, guid: ebf5bd7a0e0296c46b1364385fde92d2, type: 3}
+  - {fileID: 21300000, guid: e98aeef77a64ad648b6e4e30819a1bcb, type: 3}
+  - {fileID: 21300000, guid: 486baf581897ab647bac2f2b1dfbd14f, type: 3}
+  - {fileID: 21300000, guid: 69cf7932bd4def64d866ca8052c41dcb, type: 3}
+  - {fileID: 21300000, guid: 50723a5a54eabc645ba9223de6e08870, type: 3}
+  craterSprites:
+  - {fileID: 21300000, guid: ea6769a077cae514da5705a86d3b5fb0, type: 3}
+  - {fileID: 21300000, guid: 3d90295195c45454b923521078a3d5cd, type: 3}
+  - {fileID: 21300000, guid: 292cad26823644344bd15b484d0a260c, type: 3}
+  - {fileID: 21300000, guid: 0741c318a12892a41b495a01186b93bc, type: 3}
+  starSprites:
+  - {fileID: 21300000, guid: fcc14e57a8a4d2144a7d0c9742bd4174, type: 3}
+  - {fileID: 21300000, guid: 02a5de3dd113d8846a5efa89d29a3869, type: 3}
+  - {fileID: 21300000, guid: 538df9c6fd4f0d84b874dd0db1419eb6, type: 3}
+  - {fileID: 21300000, guid: 301d0515da5105d47b6c87304d26da89, type: 3}
+  - {fileID: 21300000, guid: df6acc94bfbdb8b49b4be6a912ffc288, type: 3}
+  - {fileID: 21300000, guid: 0fc322801f6328c4ea19eb0e8ff2c30e, type: 3}
+  - {fileID: 21300000, guid: c328cd66156e18b408e6316f799cba86, type: 3}
+  - {fileID: 21300000, guid: 556884d397fa09844961b99280ecb864, type: 3}
+  - {fileID: 21300000, guid: cc84e36aa9c11b145997632426bfd5e5, type: 3}
+  - {fileID: 21300000, guid: 8ec5aabc7c4e4a14e85282e8d70b46d7, type: 3}
+  - {fileID: 21300000, guid: f9af8f8e81917bf48bca06b65de68783, type: 3}
+  - {fileID: 21300000, guid: 4cfdd7d599552244d9b6bd8a6f7c1d66, type: 3}
+  - {fileID: 21300000, guid: 44836f9d1b7bed34eb953624f9ed84f4, type: 3}
+  - {fileID: 21300000, guid: 4dc6b8d9ef1abdb4da2a582b5a8ec4fc, type: 3}
+  - {fileID: 21300000, guid: b721e77c96ef22a4cb34bb0a6dd87a5d, type: 3}
+  - {fileID: 21300000, guid: 1abc55dcfa3cee44d901a82dd179e5a7, type: 3}
+  - {fileID: 21300000, guid: fad65a011fcf16a4f8f386fb5b21fef4, type: 3}
+  - {fileID: 21300000, guid: f7981153565eeab4f9ca76595956e39d, type: 3}
+  - {fileID: 21300000, guid: 4476cdc5794bcea48b8720a90fbc9f43, type: 3}
+  - {fileID: 21300000, guid: 94f2dfec97dd2c741a4453098a9e66fb, type: 3}
+  - {fileID: 21300000, guid: ac7690877f6e27b429d13b966b74d601, type: 3}
+  - {fileID: 21300000, guid: cfde269324110ae4a9cbbc982f1cecff, type: 3}
+  - {fileID: 21300000, guid: ac4e6230a1e919e49a6f1c8b7ce7f04f, type: 3}
+  - {fileID: 21300000, guid: 5f9c4851d69bf5d4081149119dfc510e, type: 3}
+  - {fileID: 21300000, guid: 92dbe015ed2d95b49989289ae7eeac74, type: 3}
+  - {fileID: 21300000, guid: 0d0fc4146acfffe4a81daf202f4d44f5, type: 3}
+  - {fileID: 21300000, guid: 70ccc7b8b1b0ac949b95262d08924cd9, type: 3}
+  - {fileID: 21300000, guid: dbc6eebdd21b5ad4e9cea1751a7f9501, type: 3}
+  cloudSprites:
+  - {fileID: 21300000, guid: fae8c73e026151243a97850ff5175755, type: 3}
+  - {fileID: 21300000, guid: caec35203a5d5864c89b878b8dcd3f2a, type: 3}
+  - {fileID: 21300000, guid: 70134c2d0b28ee04ca784b4a100368e7, type: 3}
+  - {fileID: 21300000, guid: c7506675cfdfb8644aa14d96082ea7c7, type: 3}
+  - {fileID: 21300000, guid: 75154ef4ad364b242a3d4d5c9dec69f3, type: 3}
+  - {fileID: 21300000, guid: c23b0ae8cca9cd049bb3c1e1de0bf582, type: 3}
+  - {fileID: 21300000, guid: 413d523bcb420a84bb4cf6ce1d0d95ea, type: 3}
+  - {fileID: 21300000, guid: 7ef4a2e4309c7ea44b6e30ce734f0f6c, type: 3}
+  - {fileID: 21300000, guid: 21db4f57544dd7140989dbf6ccee931b, type: 3}
+  - {fileID: 21300000, guid: ede8609314815854fa8e5ce6cfb64d59, type: 3}
+  - {fileID: 21300000, guid: 00f7b065212c8874f904c1129aad37bf, type: 3}
+  - {fileID: 21300000, guid: ab2fd6bd6a55e9249940ae35816ea323, type: 3}
+  - {fileID: 21300000, guid: dec1abdce5e3b3843b1a57db4578066e, type: 3}
+  - {fileID: 21300000, guid: 86c5b996c4e3fb443915d718b8dc1004, type: 3}
+  - {fileID: 21300000, guid: b3ba850a4e33890478fe144bf04225a7, type: 3}
+  - {fileID: 21300000, guid: b55b77da3819b894faf384bf798ccd20, type: 3}
+  - {fileID: 21300000, guid: 0b25a3b97a2d6674eaed6539ad290c4b, type: 3}
+  - {fileID: 21300000, guid: afc7ba7e93ee1ad4097530a77f1fbb96, type: 3}
+  - {fileID: 21300000, guid: 6277e4170f8a59342bea09c49908b335, type: 3}
+  - {fileID: 21300000, guid: 878f4d6b78e18e949ae4957398ca7d9c, type: 3}
+  - {fileID: 21300000, guid: 55476e70ae5fda447aebb1c00863fe37, type: 3}
+  - {fileID: 21300000, guid: ed92130d1e5b7a74b9f33a1be4a7eb92, type: 3}
+  - {fileID: 21300000, guid: 5e0801ff32abb764a975f910a79f2e25, type: 3}
+  - {fileID: 21300000, guid: 16ec89868eaecf340af3e807dacb98c2, type: 3}
+  - {fileID: 21300000, guid: a7d3380de3dea6b468150e5de8de2cd8, type: 3}
+  - {fileID: 21300000, guid: 98f69ef2cf7fb614f8c9121e83a20023, type: 3}
+  - {fileID: 21300000, guid: 9dd29081633f72644a5f2662a3bb48a7, type: 3}
+  - {fileID: 21300000, guid: bd76a082b8bce9848a32cb8ee6e50267, type: 3}
+  - {fileID: 21300000, guid: 454505be0b38a3741a6f5928d96f183f, type: 3}
+  - {fileID: 21300000, guid: a83b36e05e975a04cb1e96858ea1a35d, type: 3}
+  plateauCount: {x: 10, y: 18}
+  craterCount: {x: 14, y: 26}
+  plateauWorldWidth: {x: 0.38, y: 0.95}
+  craterWorldWidth: {x: 0.22, y: 0.65}
+  planetaryMinGap: 0.28
+  starCount: {x: 120, y: 220}
+  starWorldWidth: {x: 0.02, y: 0.09}
+  starMinGap: 0.06
+  densityBaselineHalfHeight: 5
+  cloudsPerSeam: {x: 90, y: 130}
+  cloudWorldWidth: {x: 1.6, y: 3}
+  cloudSeamThickness: 0.85
+  cloudSeamRows: 3
+  backgroundOrderOffset: 0
+  craterOrderOffset: 1
+  plateauOrderOffset: 2
+  starOrderOffset: 1
+  cloudOrderOffset: 10
 --- !u!1 &1988774401
 GameObject:
   m_ObjectHideFlags: 0
@@ -910,7 +2089,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameHud
   pathRunner: {fileID: 1876543202}
   playerHealth: {fileID: 0}
+  playerShooting: {fileID: 0}
   healthLabelFormat: '{0}/{1}'
+  ammoLabelFormat: '{0}/{1}'
   loopLabelFormat: 'Loop: {0}'
   referenceResolution: {x: 1080, y: 1920}
   matchWidthOrHeight: 0

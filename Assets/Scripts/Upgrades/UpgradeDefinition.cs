@@ -31,6 +31,10 @@ public class UpgradeDefinition
     public bool grantCombatRam;
     [Tooltip("Ram damage = max(1, floor(maxHealth * this fraction)).")]
     [Range(0.01f, 1f)] public float combatRamHealthFraction = 0.1f;
+    [Tooltip("Grants resurrection charges that restore HP instead of dying.")]
+    public bool grantResurrection;
+    [Min(1)] public int resurrectionCharges = 1;
+    [Min(1)] public int resurrectionHealAmount = 2;
 
     [Header("Movement")]
     [Tooltip("Multiplies followSpeed (movement speed). 1 = unchanged.")]
@@ -58,13 +62,31 @@ public class UpgradeDefinition
     [Min(0f)] public float explosionRadius;
     [Tooltip("Damage applied to enemies inside the explosion radius (not the direct hit).")]
     [Min(0)] public int explosionDamage;
-    [Tooltip("Ally drones to spawn (automata).")]
+    [Tooltip("Ally drones to spawn.")]
     [Min(0)] public int droneCount;
+    [Tooltip("Role for spawned drones (blocker / charger / shooter / medic).")]
+    public AllyDroneRole droneRole = AllyDroneRole.None;
+    [Tooltip("Raises the power tier of every owned automaton.")]
+    public bool grantPackLeader;
     [Tooltip("Debris spawned when an explosive projectile detonates (shrapnel).")]
     public bool grantShrapnel;
     [Min(0)] public int shrapnelCount;
     [Min(0f)] public float shrapnelSpeed = 8f;
     [Min(0)] public int shrapnelDamage = 1;
+    [Tooltip("Added to magazine capacity (negative shrinks).")]
+    public int magazineSizeDelta;
+    [Tooltip("Multiplies magazine reload time. 1 = unchanged.")]
+    [Min(0.05f)] public float magazineCooldownMultiplier = 1f;
+    [Tooltip("Extra damage on the first bullet of each magazine.")]
+    [Min(0)] public int firstShotDamageBonus;
+    [Tooltip("Extra damage on the last bullet of each magazine.")]
+    [Min(0)] public int lastShotDamageBonus;
+    [Tooltip("Projectiles gently steer toward nearby enemies.")]
+    public bool grantHoming;
+    [Tooltip("Degrees per second of course correction.")]
+    [Min(0f)] public float homingTurnRate = 80f;
+    [Tooltip("Max distance to acquire a homing target.")]
+    [Min(0.5f)] public float homingRange = 7f;
 
     public string CategoryLabel => category switch
     {
@@ -135,6 +157,27 @@ public class UpgradeDefinition
             },
             new UpgradeDefinition
             {
+                id = UpgradeId.ReserveCore,
+                category = UpgradeCategory.Hull,
+                displayName = "Núcleo reserva",
+                description = "Ao morrer, restaura uma pequena quantidade de vida e continua vivo uma vez.",
+                grantResurrection = true,
+                resurrectionCharges = 1,
+                resurrectionHealAmount = 2,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.JustOneMoreTime,
+                category = UpgradeCategory.Hull,
+                displayName = "Só mais uma vez",
+                description = "Adiciona mais uma carga de ressurreição.",
+                prerequisites = new[] { UpgradeId.ReserveCore },
+                grantResurrection = true,
+                resurrectionCharges = 1,
+                resurrectionHealAmount = 2,
+            },
+            new UpgradeDefinition
+            {
                 id = UpgradeId.ReinforcedThrusters,
                 category = UpgradeCategory.Engine,
                 displayName = "Propulsores reforçados",
@@ -180,6 +223,15 @@ public class UpgradeDefinition
             },
             new UpgradeDefinition
             {
+                id = UpgradeId.Priorities,
+                category = UpgradeCategory.Engine,
+                displayName = "Prioridades",
+                description = "Aumenta consideravelmente a velocidade, mas diminui o número de balas no pente.",
+                moveSpeedMultiplier = 1.5f,
+                magazineSizeDelta = -5,
+            },
+            new UpgradeDefinition
+            {
                 id = UpgradeId.DoubleCannon,
                 category = UpgradeCategory.Weapons,
                 displayName = "Canhão duplo",
@@ -208,8 +260,9 @@ public class UpgradeDefinition
                 id = UpgradeId.Automata,
                 category = UpgradeCategory.Weapons,
                 displayName = "Autômatos",
-                description = "Drones auxiliares que atiram nos inimigos.",
-                droneCount = 2,
+                description = "Drone auxiliar que bloqueia tiros inimigos e causa dano ao contato.",
+                droneCount = 1,
+                droneRole = AllyDroneRole.Blocker,
             },
             new UpgradeDefinition
             {
@@ -240,6 +293,95 @@ public class UpgradeDefinition
                 shrapnelCount = 6,
                 shrapnelSpeed = 9f,
                 shrapnelDamage = 1,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.HomingAmmo,
+                category = UpgradeCategory.Weapons,
+                displayName = "Munição perseguidora",
+                description = "Projéteis corrigem levemente sua trajetória em direção aos inimigos.",
+                grantHoming = true,
+                homingTurnRate = 80f,
+                homingRange = 7f,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.Reload,
+                category = UpgradeCategory.Weapons,
+                displayName = "Recarga",
+                description = "Diminui o tempo de recarga das armas.",
+                magazineCooldownMultiplier = 0.6f,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.AceInTheHole,
+                category = UpgradeCategory.Weapons,
+                displayName = "Carta na manga",
+                description = "A última bala causa dano extra, mas diminui a quantidade de balas no pente.",
+                lastShotDamageBonus = 2,
+                magazineSizeDelta = -3,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.FirstShotPower,
+                category = UpgradeCategory.Weapons,
+                displayName = "Potência na primeira",
+                description = "A primeira bala causa dano extra, mas diminui a quantidade de balas no pente.",
+                firstShotDamageBonus = 2,
+                magazineSizeDelta = -3,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.ExtendedMagazine,
+                category = UpgradeCategory.Weapons,
+                displayName = "Pente estendido",
+                description = "Aumenta a quantidade de balas no pente.",
+                magazineSizeDelta = 5,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.SmallAndBrave,
+                category = UpgradeCategory.Weapons,
+                displayName = "Pequeno e corajoso",
+                description = "Recebe um autômato extra que se lança em inimigos. Cooldown de 5 segundos.",
+                prerequisites = new[] { UpgradeId.Automata },
+                droneCount = 1,
+                droneRole = AllyDroneRole.Charger,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.ArtilleryAide,
+                category = UpgradeCategory.Weapons,
+                displayName = "Ajudante de artilharia",
+                description = "Recebe um autômato extra que atira em inimigos.",
+                prerequisites = new[] { UpgradeId.Automata },
+                droneCount = 1,
+                droneRole = AllyDroneRole.Shooter,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.CombatMedic,
+                category = UpgradeCategory.Weapons,
+                displayName = "Médico de combate",
+                description = "Recebe um autômato adicional que cura sua vida em 1 ponto a cada 2 segundos.",
+                prerequisites = new[] { UpgradeId.Automata },
+                droneCount = 1,
+                droneRole = AllyDroneRole.Medic,
+            },
+            new UpgradeDefinition
+            {
+                id = UpgradeId.PackLeader,
+                category = UpgradeCategory.Weapons,
+                displayName = "Líder do bando",
+                description = "Aprimora todos os autômatos: órbita mais rápida, investida limpa tiros (CD 3s), tiros com seus buffs e cura 2 HP / 2s.",
+                prerequisites = new[]
+                {
+                    UpgradeId.Automata,
+                    UpgradeId.CombatMedic,
+                    UpgradeId.SmallAndBrave,
+                    UpgradeId.ArtilleryAide,
+                },
+                grantPackLeader = true,
             },
         };
     }

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -26,6 +27,11 @@ public class PlayerProjectile : MonoBehaviour
     [SerializeField] [Min(0)] int shrapnelCount;
     [SerializeField] [Min(0.1f)] float shrapnelSpeed = 9f;
     [SerializeField] [Min(0)] int shrapnelDamage = 1;
+
+    [Header("Homing")]
+    [SerializeField] bool homingEnabled;
+    [SerializeField] [Min(0f)] float homingTurnRate = 80f;
+    [SerializeField] [Min(0.5f)] float homingRange = 7f;
 
     [Header("Lifetime")]
     [Tooltip("Destroy when this far outside the camera view (world units).")]
@@ -68,6 +74,13 @@ public class PlayerProjectile : MonoBehaviour
         shrapnelDamage = Mathf.Max(0, debrisDamage);
     }
 
+    public void SetHoming(float turnRateDegrees, float range)
+    {
+        homingEnabled = turnRateDegrees > 0f && range > 0f;
+        homingTurnRate = Mathf.Max(0f, turnRateDegrees);
+        homingRange = Mathf.Max(0.5f, range);
+    }
+
     void Awake()
     {
         TryGetComponent(out _body);
@@ -91,12 +104,67 @@ public class PlayerProjectile : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (homingEnabled)
+        {
+            ApplyHoming(Time.fixedDeltaTime);
+        }
+
         _body.MovePosition(_body.position + _velocity * Time.fixedDeltaTime);
 
         if (IsOutsideCamera())
         {
             Destroy(gameObject);
         }
+    }
+
+    void ApplyHoming(float deltaTime)
+    {
+        if (!TryFindHomingTarget(out Vector2 targetPosition))
+        {
+            return;
+        }
+
+        Vector2 toTarget = targetPosition - _body.position;
+        if (toTarget.sqrMagnitude < 0.0001f)
+        {
+            return;
+        }
+
+        Vector2 currentDirection = _velocity.sqrMagnitude > 0.0001f ? _velocity.normalized : direction;
+        float maxRadians = Mathf.Deg2Rad * homingTurnRate * deltaTime;
+        Vector2 nextDirection = Vector3.RotateTowards(currentDirection, toTarget.normalized, maxRadians, 0f);
+        direction = nextDirection;
+        _velocity = direction * speed;
+    }
+
+    bool TryFindHomingTarget(out Vector2 targetPosition)
+    {
+        targetPosition = default;
+        IReadOnlyList<EnemyHealth> enemies = EnemyHealth.Active;
+        float bestSqr = homingRange * homingRange;
+        bool found = false;
+
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            EnemyHealth enemy = enemies[i];
+            if (enemy == null || !enemy.IsAlive)
+            {
+                continue;
+            }
+
+            Vector2 toEnemy = (Vector2)enemy.transform.position - _body.position;
+            float sqr = toEnemy.sqrMagnitude;
+            if (sqr > bestSqr)
+            {
+                continue;
+            }
+
+            bestSqr = sqr;
+            targetPosition = enemy.transform.position;
+            found = true;
+        }
+
+        return found;
     }
 
     void OnTriggerEnter2D(Collider2D other)

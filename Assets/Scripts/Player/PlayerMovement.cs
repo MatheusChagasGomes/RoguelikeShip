@@ -34,6 +34,10 @@ public class PlayerMovement : MonoBehaviour
 
     /// <summary>Multiplies followSpeed (movement speed).</summary>
     public float MoveSpeedMultiplier => _moveSpeedMultiplier;
+    public bool EmergencyFuelEnabled => _emergencyFuelEnabled;
+    public float EmergencyFuelBonus => _emergencyFuelBonus;
+    public float MovementResponsiveness => _responsivenessMultiplier;
+    public bool InstantMovement => _instantMovement;
 
     void Awake()
     {

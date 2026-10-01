@@ -18,22 +18,28 @@ public class ScenarioChunkBuilder : MonoBehaviour
     [SerializeField] Sprite[] cloudSprites;
 
     [Header("Planetary Density")]
-    [SerializeField] Vector2Int plateauCount = new Vector2Int(4, 7);
-    [SerializeField] Vector2Int craterCount = new Vector2Int(6, 11);
+    [SerializeField] Vector2Int plateauCount = new Vector2Int(10, 18);
+    [SerializeField] Vector2Int craterCount = new Vector2Int(14, 26);
     [SerializeField] Vector2 plateauWorldWidth = new Vector2(0.38f, 0.95f);
     [SerializeField] Vector2 craterWorldWidth = new Vector2(0.22f, 0.65f);
-    [SerializeField] [Min(0f)] float planetaryMinGap = 0.35f;
+    [SerializeField] [Min(0f)] float planetaryMinGap = 0.28f;
 
     [Header("Space Density")]
-    [SerializeField] Vector2Int starCount = new Vector2Int(50, 85);
-    [SerializeField] Vector2 starWorldWidth = new Vector2(0.03f, 0.14f);
-    [SerializeField] [Min(0f)] float starMinGap = 0.08f;
+    [SerializeField] Vector2Int starCount = new Vector2Int(120, 220);
+    [SerializeField] Vector2 starWorldWidth = new Vector2(0.02f, 0.09f);
+    [SerializeField] [Min(0f)] float starMinGap = 0.06f;
+
+    [Header("Density Scaling")]
+    [SerializeField]
+    [Min(0.5f)]
+    [Tooltip("Prop counts scale with chunk height vs this half-height baseline (~one screen).")]
+    float densityBaselineHalfHeight = 5f;
 
     [Header("Cloud Seam (transition line only)")]
-    [SerializeField] Vector2Int cloudsPerSeam = new Vector2Int(60, 85);
-    [SerializeField] Vector2 cloudWorldWidth = new Vector2(2.2f, 4.8f);
-    [SerializeField] [Min(0.02f)] float cloudSeamThickness = 2.0f;
-    [SerializeField] [Min(1)] int cloudSeamRows = 7;
+    [SerializeField] Vector2Int cloudsPerSeam = new Vector2Int(90, 130);
+    [SerializeField] Vector2 cloudWorldWidth = new Vector2(1.6f, 3.0f);
+    [SerializeField] [Min(0.02f)] float cloudSeamThickness = 0.85f;
+    [SerializeField] [Min(1)] int cloudSeamRows = 3;
 
     [Header("Sorting")]
     [SerializeField] int backgroundOrderOffset = 0;
@@ -95,13 +101,15 @@ public class ScenarioChunkBuilder : MonoBehaviour
         // so plateaus/craters don't overhang into the previous scenario.
         float contentHalfHeight = Mathf.Max(0.5f, halfHeight - cloudSeamThickness * 1.15f);
 
+        float densityScale = GetDensityScale(halfHeight);
+
         if (scenario.kind == ScenarioKind.Planetary)
         {
-            BuildPlanetary(chunkRoot, rng, halfWidth, contentHalfHeight, baseSortingOrder);
+            BuildPlanetary(chunkRoot, rng, halfWidth, contentHalfHeight, baseSortingOrder, densityScale);
         }
         else
         {
-            BuildSpace(chunkRoot, rng, halfWidth, contentHalfHeight, baseSortingOrder);
+            BuildSpace(chunkRoot, rng, halfWidth, contentHalfHeight, baseSortingOrder, densityScale);
         }
     }
 
@@ -225,9 +233,15 @@ public class ScenarioChunkBuilder : MonoBehaviour
         FitSpriteToSize(renderer, halfWidth * 2f, halfHeight * 2f);
     }
 
-    void BuildPlanetary(Transform chunkRoot, System.Random rng, float halfWidth, float halfHeight, int baseSortingOrder)
+    void BuildPlanetary(
+        Transform chunkRoot,
+        System.Random rng,
+        float halfWidth,
+        float halfHeight,
+        int baseSortingOrder,
+        float densityScale)
     {
-        int craters = RandomRange(rng, craterCount);
+        int craters = ScaleCount(RandomRange(rng, craterCount), densityScale);
         for (int i = 0; i < craters; i++)
         {
             SpawnDecor(
@@ -243,7 +257,7 @@ public class ScenarioChunkBuilder : MonoBehaviour
                 allowFlip: true);
         }
 
-        int plateaus = RandomRange(rng, plateauCount);
+        int plateaus = ScaleCount(RandomRange(rng, plateauCount), densityScale);
         for (int i = 0; i < plateaus; i++)
         {
             SpawnDecor(
@@ -260,9 +274,15 @@ public class ScenarioChunkBuilder : MonoBehaviour
         }
     }
 
-    void BuildSpace(Transform chunkRoot, System.Random rng, float halfWidth, float halfHeight, int baseSortingOrder)
+    void BuildSpace(
+        Transform chunkRoot,
+        System.Random rng,
+        float halfWidth,
+        float halfHeight,
+        int baseSortingOrder,
+        float densityScale)
     {
-        int stars = RandomRange(rng, starCount);
+        int stars = ScaleCount(RandomRange(rng, starCount), densityScale);
         for (int i = 0; i < stars; i++)
         {
             SpawnDecor(
@@ -278,6 +298,17 @@ public class ScenarioChunkBuilder : MonoBehaviour
                 allowFlip: false,
                 randomRotation: false);
         }
+    }
+
+    float GetDensityScale(float halfHeight)
+    {
+        float baseline = Mathf.Max(0.5f, densityBaselineHalfHeight);
+        return Mathf.Max(1f, halfHeight / baseline);
+    }
+
+    static int ScaleCount(int baseCount, float densityScale)
+    {
+        return Mathf.Max(0, Mathf.RoundToInt(baseCount * densityScale));
     }
 
     void SpawnDecor(
@@ -330,7 +361,7 @@ public class ScenarioChunkBuilder : MonoBehaviour
         float minGap,
         out Vector2 pos)
     {
-        const int maxAttempts = 40;
+        const int maxAttempts = 55;
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
             pos = new Vector2(
@@ -606,6 +637,7 @@ public class ScenarioChunkBuilder : MonoBehaviour
         cloudsPerSeam.y = Mathf.Max(cloudsPerSeam.x, cloudsPerSeam.y);
         planetaryMinGap = Mathf.Max(0f, planetaryMinGap);
         starMinGap = Mathf.Max(0f, starMinGap);
+        densityBaselineHalfHeight = Mathf.Max(0.5f, densityBaselineHalfHeight);
         cloudSeamThickness = Mathf.Max(0.02f, cloudSeamThickness);
         cloudSeamRows = Mathf.Max(1, cloudSeamRows);
 

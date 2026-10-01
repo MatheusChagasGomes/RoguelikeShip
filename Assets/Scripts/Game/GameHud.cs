@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Screen-space HUD for the run. Shows player health and completed scenario loops,
+/// Screen-space HUD for the run. Shows player health, magazine ammo, and completed scenario loops,
 /// scaled for portrait phones and inset into the device safe area (notch / home indicator).
 /// </summary>
 [DisallowMultipleComponent]
@@ -10,7 +10,9 @@ public class GameHud : MonoBehaviour
 {
     [SerializeField] ScenarioPathRunner pathRunner;
     [SerializeField] PlayerHealth playerHealth;
+    [SerializeField] PlayerShooting playerShooting;
     [SerializeField] string healthLabelFormat = "{0}/{1}";
+    [SerializeField] string ammoLabelFormat = "{0}/{1}";
     [SerializeField] string loopLabelFormat = "Loop: {0}";
 
     [Header("Mobile Layout")]
@@ -24,6 +26,7 @@ public class GameHud : MonoBehaviour
     static readonly Color LabelColor = new Color(0.92f, 0.95f, 1f, 1f);
 
     Text _healthText;
+    Text _ammoText;
     Text _loopText;
     RectTransform _safeAreaRoot;
     Rect _lastSafeArea;
@@ -41,12 +44,25 @@ public class GameHud : MonoBehaviour
             playerHealth = FindFirstObjectByType<PlayerHealth>();
         }
 
+        if (playerShooting == null)
+        {
+            playerShooting = FindFirstObjectByType<PlayerShooting>();
+        }
+
         BuildUi();
         ApplySafeArea(force: true);
         RefreshHealthLabel(
             playerHealth != null ? playerHealth.CurrentHealth : 100,
             playerHealth != null ? playerHealth.MaxHealth : 100);
         RefreshLoopLabel(pathRunner != null ? pathRunner.LoopIndex : 0);
+    }
+
+    void Start()
+    {
+        if (playerShooting != null)
+        {
+            RefreshAmmoLabel(playerShooting.ShotsRemaining, playerShooting.MagazineSize);
+        }
     }
 
     void OnEnable()
@@ -60,6 +76,11 @@ public class GameHud : MonoBehaviour
         {
             playerHealth.HealthChanged += HandleHealthChanged;
         }
+
+        if (playerShooting != null)
+        {
+            playerShooting.AmmoChanged += HandleAmmoChanged;
+        }
     }
 
     void OnDisable()
@@ -72,6 +93,11 @@ public class GameHud : MonoBehaviour
         if (playerHealth != null)
         {
             playerHealth.HealthChanged -= HandleHealthChanged;
+        }
+
+        if (playerShooting != null)
+        {
+            playerShooting.AmmoChanged -= HandleAmmoChanged;
         }
     }
 
@@ -90,6 +116,11 @@ public class GameHud : MonoBehaviour
         RefreshHealthLabel(current, max);
     }
 
+    void HandleAmmoChanged(int current, int max)
+    {
+        RefreshAmmoLabel(current, max);
+    }
+
     void RefreshHealthLabel(int current, int max)
     {
         if (_healthText == null)
@@ -98,6 +129,16 @@ public class GameHud : MonoBehaviour
         }
 
         _healthText.text = string.Format(healthLabelFormat, current, max);
+    }
+
+    void RefreshAmmoLabel(int current, int max)
+    {
+        if (_ammoText == null)
+        {
+            return;
+        }
+
+        _ammoText.text = string.Format(ammoLabelFormat, current, max);
     }
 
     void RefreshLoopLabel(int loopIndex)
@@ -138,6 +179,9 @@ public class GameHud : MonoBehaviour
 
         _healthText = CreateHudLabel("HealthLabel", new Vector2(0f, 1f), TextAnchor.UpperLeft,
             new Vector2(Mathf.Abs(padding.x), -Mathf.Abs(padding.y)), "100/100");
+
+        _ammoText = CreateHudLabel("AmmoLabel", new Vector2(0f, 0f), TextAnchor.LowerLeft,
+            new Vector2(Mathf.Abs(padding.x), Mathf.Abs(padding.y)), "15/15");
 
         _loopText = CreateHudLabel("LoopLabel", new Vector2(1f, 0f), TextAnchor.LowerRight,
             new Vector2(-Mathf.Abs(padding.x), Mathf.Abs(padding.y)), string.Format(loopLabelFormat, 0));
