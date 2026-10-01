@@ -40,6 +40,7 @@ public class GameLoopController : MonoBehaviour
         }
 
         EnsureUpgradeSystem();
+        EnsureConsumableSystem();
     }
 
     void EnsureUpgradeSystem()
@@ -52,6 +53,19 @@ public class GameLoopController : MonoBehaviour
         if (FindFirstObjectByType<UpgradeOfferController>() == null)
         {
             gameObject.AddComponent<UpgradeOfferController>();
+        }
+    }
+
+    void EnsureConsumableSystem()
+    {
+        if (FindFirstObjectByType<PlayerConsumableController>() == null)
+        {
+            gameObject.AddComponent<PlayerConsumableController>();
+        }
+
+        if (FindFirstObjectByType<ConsumableOfferController>() == null)
+        {
+            gameObject.AddComponent<ConsumableOfferController>();
         }
     }
 

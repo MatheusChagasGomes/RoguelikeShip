@@ -4,10 +4,9 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Scrolls procedurally generated scenario chunks past a fixed camera/player.
-/// Owns path timing/transitions only; scenario rolls come from
-/// <see cref="ScenarioGenerator"/> and visuals from <see cref="ScenarioChunkBuilder"/>.
-/// Planetary/Space alternate; cloud piles appear only on the horizontal seam.
+/// Continuously scrolls procedurally generated scenario chunks past a fixed camera/player.
+/// While the player is in a stretch, the next chunk and its cloud seam are already built
+/// and stacked above, so the handoff scrolls in instead of spawning suddenly.
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(ScenarioChunkBuilder))]
@@ -22,7 +21,8 @@ public class ScenarioPathRunner : MonoBehaviour
 
     [SerializeField]
     [Min(0.1f)]
-    float scenarioDurationSeconds = 8f;
+    [Tooltip("Seconds each scenario takes to scroll fully past the camera.")]
+    float scenarioDurationSeconds = 20f;
 
     [SerializeField]
     [Tooltip("If > 0, the whole run uses this seed. 0 = different layout every play.")]
@@ -33,6 +33,11 @@ public class ScenarioPathRunner : MonoBehaviour
     [Min(0.01f)]
     [Tooltip("World units per second.")]
     float scrollSpeed = 3f;
+
+    [SerializeField]
+    [Min(1f)]
+    [Tooltip("Minimum scenario length in camera heights (longer stretches feel like flight).")]
+    float minChunkHeightScreens = 2.5f;
 
     [SerializeField]
     [Min(0f)]
@@ -66,11 +71,18 @@ public class ScenarioPathRunner : MonoBehaviour
     float _currentDurationDistance;
     int _scenarioIndex;
     int _loopIndex;
+    int _preparedNextIndex;
     bool _isRunning;
     bool _completed;
     bool _isTransitioning;
+    bool _nextPrepared;
+    bool _preparedStartsNewLoop;
+    bool _boundaryEventPending;
+    bool _pendingStartsNewLoop;
     float _chunkHalfWidth;
-    float _chunkHalfHeight;
+    float _currentHalfHeight;
+    float _incomingHalfHeight;
+    Transform _boundaryAnchor;
 
     public event Action<int> OnScenarioStarted;
     public event Action OnPathCompleted;
@@ -147,23 +159,35 @@ public class ScenarioPathRunner : MonoBehaviour
         float delta = scrollSpeed * Time.deltaTime;
         _segmentTravel += delta;
 
-        if (_isTransitioning && _currentChunk != null)
+        // Current, prepared next, and seam always move together.
+        ScrollPreparedPath(delta);
+
+        if (_isTransitioning)
         {
-            // Seam clouds ride the top edge of the outgoing chunk.
-            _currentChunk.position += Vector3.down * delta;
-            if (_seamClouds != null)
+            if (_boundaryEventPending && HasReachedScenarioBoundary())
             {
-                _seamClouds.position += Vector3.down * delta;
+                RaiseBoundaryEvents();
             }
 
             if (_segmentTravel >= _currentDurationDistance)
             {
-                FinishTransition();
+                if (_boundaryEventPending)
+                {
+                    RaiseBoundaryEvents();
+                }
+
+                FinishTransitionAndPrepareNext();
             }
         }
         else if (_segmentTravel >= _currentDurationDistance)
         {
-            BeginNextTransition();
+            if (!_nextPrepared)
+            {
+                CompletePath();
+                return;
+            }
+
+            BeginSeamCrossing();
         }
     }
 
@@ -186,22 +210,23 @@ public class ScenarioPathRunner : MonoBehaviour
         _scenarioIndex = 0;
         _completed = false;
         _isTransitioning = false;
+        _nextPrepared = false;
+        _preparedStartsNewLoop = false;
+        _boundaryEventPending = false;
+        _pendingStartsNewLoop = false;
         _segmentTravel = 0f;
         _isRunning = true;
 
-        InitRunRng();
-        GenerateLoopScenarios();
-        ClearSeamClouds();
+        InitRunRng(_loopIndex);
+        GenerateLoopScenarios(_loopIndex);
 
-        ApplyChunk(_currentChunk, GetViewCenter(), 0, sortingOrder + 1);
+        Vector3 startPos = GetBottomAlignedChunkPosition(ComputeChunkHalfHeight(0));
+        ApplyChunk(_currentChunk, startPos, 0, sortingOrder + 1, out _currentHalfHeight);
         _currentChunk.gameObject.SetActive(true);
 
-        if (_incomingChunk != null)
-        {
-            _incomingChunk.gameObject.SetActive(false);
-        }
+        PrepareNextChunk();
 
-        _currentDurationDistance = scrollSpeed * Mathf.Max(0.1f, scenarioDurationSeconds);
+        _currentDurationDistance = GetPreTransitionDistance(_currentHalfHeight);
         OnLoopStarted?.Invoke(_loopIndex);
         OnScenarioStarted?.Invoke(0);
     }
@@ -211,52 +236,78 @@ public class ScenarioPathRunner : MonoBehaviour
         _isRunning = false;
     }
 
-    void BeginNextTransition()
+    /// <summary>
+    /// Seam is entering the view. Indices advance now; scenario/loop events wait until the
+    /// cloud dividing line reaches the player (or camera center).
+    /// </summary>
+    void BeginSeamCrossing()
     {
-        int outgoingSeed = TryGetScenario(_scenarioIndex, out ScenarioDefinition outgoing)
-            ? outgoing.seed
-            : Environment.TickCount;
-
-        int nextIndex = _scenarioIndex + 1;
-        bool startingNewLoop = false;
-
-        if (nextIndex >= ScenarioCount)
-        {
-            if (!loopOnComplete)
-            {
-                CompletePath();
-                return;
-            }
-
-            OnPathCompleted?.Invoke();
-            _loopIndex++;
-            nextIndex = 0;
-            startingNewLoop = true;
-            InitRunRng();
-            GenerateLoopScenarios();
-        }
-
-        _scenarioIndex = nextIndex;
         _segmentTravel = 0f;
         _isTransitioning = true;
         _currentDurationDistance = GetViewHeight();
+        _scenarioIndex = _preparedNextIndex;
 
-        ApplyChunk(_incomingChunk, GetViewCenter(), nextIndex, sortingOrder);
-        _incomingChunk.gameObject.SetActive(true);
-        SetChunkSorting(_currentChunk, sortingOrder + 1);
-
-        // Cloud pile only on the dividing line (top edge of the outgoing chunk).
-        PlaceSeamCloudsOnCurrentTop(outgoingSeed);
-
-        if (startingNewLoop)
-        {
-            OnLoopStarted?.Invoke(_loopIndex);
-        }
-
-        OnScenarioStarted?.Invoke(nextIndex);
+        _boundaryEventPending = true;
+        _pendingStartsNewLoop = _preparedStartsNewLoop;
+        _preparedStartsNewLoop = false;
     }
 
-    void FinishTransition()
+    void RaiseBoundaryEvents()
+    {
+        if (!_boundaryEventPending)
+        {
+            return;
+        }
+
+        _boundaryEventPending = false;
+
+        if (_pendingStartsNewLoop)
+        {
+            OnPathCompleted?.Invoke();
+            _loopIndex++;
+            OnLoopStarted?.Invoke(_loopIndex);
+            _pendingStartsNewLoop = false;
+        }
+
+        OnScenarioStarted?.Invoke(_scenarioIndex);
+    }
+
+    bool HasReachedScenarioBoundary()
+    {
+        float boundaryY = ResolveBoundaryAnchorY();
+
+        if (_seamClouds != null && _seamClouds.gameObject.activeSelf)
+        {
+            return _seamClouds.position.y <= boundaryY;
+        }
+
+        // Fallback if the seam visual is missing: mid-screen during the cross.
+        return _segmentTravel >= GetViewHeight() * 0.5f;
+    }
+
+    float ResolveBoundaryAnchorY()
+    {
+        if (_boundaryAnchor == null)
+        {
+            PlayerHealth player = FindFirstObjectByType<PlayerHealth>();
+            if (player != null)
+            {
+                _boundaryAnchor = player.transform;
+            }
+        }
+
+        if (_boundaryAnchor != null)
+        {
+            return _boundaryAnchor.position.y;
+        }
+
+        return GetViewCenter().y;
+    }
+
+    /// <summary>
+    /// Current chunk has left the view; promote the prepared next and build the one after that.
+    /// </summary>
+    void FinishTransitionAndPrepareNext()
     {
         _isTransitioning = false;
         _segmentTravel = 0f;
@@ -264,22 +315,82 @@ public class ScenarioPathRunner : MonoBehaviour
         var previous = _currentChunk;
         _currentChunk = _incomingChunk;
         _incomingChunk = previous;
+        _currentHalfHeight = _incomingHalfHeight;
 
-        Vector3 center = GetViewCenter();
-        _currentChunk.position = new Vector3(center.x, center.y, transform.position.z);
         SetChunkSorting(_currentChunk, sortingOrder + 1);
         _currentChunk.gameObject.SetActive(true);
+
+        // Drop the outgoing visuals before rebuilding that transform as the new lookahead.
+        ClearChunkChildren(_incomingChunk);
         _incomingChunk.gameObject.SetActive(false);
         ClearSeamClouds();
+        _nextPrepared = false;
 
-        float fullDistance = scrollSpeed * Mathf.Max(0.1f, scenarioDurationSeconds);
-        float holdDistance = Mathf.Max(0f, fullDistance - GetViewHeight());
-        _currentDurationDistance = holdDistance;
+        PrepareNextChunk();
+
+        _currentDurationDistance = GetPreTransitionDistance(_currentHalfHeight);
 
         if (_currentDurationDistance <= 0f)
         {
-            BeginNextTransition();
+            if (!_nextPrepared)
+            {
+                CompletePath();
+                return;
+            }
+
+            BeginSeamCrossing();
         }
+    }
+
+    /// <summary>
+    /// Builds the upcoming scenario stacked above the current one, plus the cloud seam on the join.
+    /// </summary>
+    void PrepareNextChunk()
+    {
+        if (_currentChunk == null || _incomingChunk == null)
+        {
+            _nextPrepared = false;
+            return;
+        }
+
+        int outgoingSeed = TryGetScenario(_scenarioIndex, out ScenarioDefinition outgoing)
+            ? outgoing.seed
+            : Environment.TickCount;
+
+        int nextIndex = _scenarioIndex + 1;
+        bool startsNewLoop = false;
+
+        if (nextIndex >= ScenarioCount)
+        {
+            if (!loopOnComplete)
+            {
+                _nextPrepared = false;
+                _preparedStartsNewLoop = false;
+                ClearSeamClouds();
+                _incomingChunk.gameObject.SetActive(false);
+                return;
+            }
+
+            // Lookahead into the next loop while the player is still finishing this one.
+            int nextLoopIndex = _loopIndex + 1;
+            InitRunRng(nextLoopIndex);
+            GenerateLoopScenarios(nextLoopIndex);
+            nextIndex = 0;
+            startsNewLoop = true;
+        }
+
+        _preparedNextIndex = nextIndex;
+        _preparedStartsNewLoop = startsNewLoop;
+
+        float nextHalfHeight = ComputeChunkHalfHeight(nextIndex);
+        Vector3 stackedPos = _currentChunk.position
+            + Vector3.up * (_currentHalfHeight + nextHalfHeight);
+        ApplyChunk(_incomingChunk, stackedPos, nextIndex, sortingOrder, out _incomingHalfHeight);
+        _incomingChunk.gameObject.SetActive(true);
+        SetChunkSorting(_currentChunk, sortingOrder + 1);
+
+        PlaceSeamCloudsOnCurrentTop(outgoingSeed);
+        _nextPrepared = true;
     }
 
     void CompletePath()
@@ -292,26 +403,47 @@ public class ScenarioPathRunner : MonoBehaviour
         _isRunning = false;
         _completed = true;
         _isTransitioning = false;
+        _nextPrepared = false;
         ClearSeamClouds();
         OnPathCompleted?.Invoke();
     }
 
-    void InitRunRng()
+    void ScrollPreparedPath(float delta)
+    {
+        Vector3 step = Vector3.down * delta;
+
+        if (_currentChunk != null)
+        {
+            _currentChunk.position += step;
+        }
+
+        if (_nextPrepared && _incomingChunk != null && _incomingChunk.gameObject.activeSelf)
+        {
+            _incomingChunk.position += step;
+        }
+
+        if (_seamClouds != null && _seamClouds.gameObject.activeSelf)
+        {
+            _seamClouds.position += step;
+        }
+    }
+
+    void InitRunRng(int loopIndex)
     {
         int seed = runSeed != 0
-            ? unchecked(runSeed + _loopIndex * 9973)
-            : unchecked(Environment.TickCount ^ (_loopIndex * 7919) ^ GetInstanceID());
+            ? unchecked(runSeed + loopIndex * 9973)
+            : unchecked(Environment.TickCount ^ (loopIndex * 7919) ^ GetInstanceID());
         _runRng = new System.Random(seed);
     }
 
-    void GenerateLoopScenarios()
+    void GenerateLoopScenarios(int loopIndex)
     {
         if (_runRng == null)
         {
-            InitRunRng();
+            InitRunRng(loopIndex);
         }
 
-        var generator = new ScenarioGenerator(_runRng, scenarioDurationSeconds, _loopIndex);
+        var generator = new ScenarioGenerator(_runRng, scenarioDurationSeconds, loopIndex);
         _generated.Clear();
         _generated.AddRange(generator.GenerateLoop(scenariosPerLoop));
     }
@@ -360,17 +492,23 @@ public class ScenarioPathRunner : MonoBehaviour
         return go.transform;
     }
 
-    void ApplyChunk(Transform chunk, Vector3 worldCenter, int scenarioIndex, int baseSorting)
+    void ApplyChunk(
+        Transform chunk,
+        Vector3 worldPosition,
+        int scenarioIndex,
+        int baseSorting,
+        out float halfHeight)
     {
+        halfHeight = 0f;
         if (chunk == null || worldCamera == null || _chunkBuilder == null)
         {
             return;
         }
 
         _chunkHalfWidth = GetViewWidth() * 0.5f + widthPadding;
-        _chunkHalfHeight = GetViewHeight() * 0.5f + widthPadding * 0.5f;
+        halfHeight = ComputeChunkHalfHeight(scenarioIndex);
 
-        chunk.position = new Vector3(worldCenter.x, worldCenter.y, transform.position.z);
+        chunk.position = new Vector3(worldPosition.x, worldPosition.y, transform.position.z);
         chunk.rotation = Quaternion.identity;
         chunk.localScale = Vector3.one;
         SetChunkSorting(chunk, baseSorting);
@@ -385,8 +523,35 @@ public class ScenarioPathRunner : MonoBehaviour
             chunk,
             scenario,
             _chunkHalfWidth,
-            _chunkHalfHeight,
+            halfHeight,
             baseSortingOrder: 0);
+    }
+
+    float ComputeChunkHalfHeight(int scenarioIndex)
+    {
+        float duration = scenarioDurationSeconds;
+        if (TryGetScenario(scenarioIndex, out ScenarioDefinition scenario) && scenario != null)
+        {
+            duration = Mathf.Max(0.1f, scenario.durationSeconds);
+        }
+
+        float travelHeight = scrollSpeed * duration;
+        float minHeight = GetViewHeight() * Mathf.Max(1f, minChunkHeightScreens);
+        float chunkHeight = Mathf.Max(minHeight, travelHeight);
+        return chunkHeight * 0.5f + widthPadding * 0.5f;
+    }
+
+    Vector3 GetBottomAlignedChunkPosition(float halfHeight)
+    {
+        Vector3 center = GetViewCenter();
+        float y = center.y - GetViewHeight() * 0.5f + halfHeight;
+        return new Vector3(center.x, y, transform.position.z);
+    }
+
+    float GetPreTransitionDistance(float halfHeight)
+    {
+        float chunkHeight = halfHeight * 2f;
+        return Mathf.Max(0f, chunkHeight - GetViewHeight());
     }
 
     void PlaceSeamCloudsOnCurrentTop(int seed)
@@ -396,7 +561,7 @@ public class ScenarioPathRunner : MonoBehaviour
             return;
         }
 
-        Vector3 top = _currentChunk.position + Vector3.up * _chunkHalfHeight;
+        Vector3 top = _currentChunk.position + Vector3.up * _currentHalfHeight;
         _seamClouds.position = new Vector3(top.x, top.y, _currentChunk.position.z);
         _seamClouds.rotation = Quaternion.identity;
         _seamClouds.localScale = Vector3.one;
@@ -424,12 +589,21 @@ public class ScenarioPathRunner : MonoBehaviour
             return;
         }
 
-        for (int i = _seamClouds.childCount - 1; i >= 0; i--)
+        ClearChunkChildren(_seamClouds);
+        _seamClouds.gameObject.SetActive(false);
+    }
+
+    static void ClearChunkChildren(Transform root)
+    {
+        if (root == null)
         {
-            Destroy(_seamClouds.GetChild(i).gameObject);
+            return;
         }
 
-        _seamClouds.gameObject.SetActive(false);
+        for (int i = root.childCount - 1; i >= 0; i--)
+        {
+            Destroy(root.GetChild(i).gameObject);
+        }
     }
 
     static void SetChunkSorting(Transform chunk, int baseSorting)
@@ -474,6 +648,7 @@ public class ScenarioPathRunner : MonoBehaviour
         scenariosPerLoop = Mathf.Max(1, scenariosPerLoop);
         scenarioDurationSeconds = Mathf.Max(0.1f, scenarioDurationSeconds);
         scrollSpeed = Mathf.Max(0.01f, scrollSpeed);
+        minChunkHeightScreens = Mathf.Max(1f, minChunkHeightScreens);
 
         if (_chunkBuilder == null)
         {

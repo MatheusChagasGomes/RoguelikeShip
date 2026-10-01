@@ -27,6 +27,11 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] PlayerForceShield forceShield;
 
     Coroutine _invulnerabilityRoutine;
+    int _resurrectionCharges;
+    int _resurrectionHealAmount = 2;
+    int _temporaryResurrectionCharges;
+    int _temporaryResurrectionHealAmount = 2;
+    Func<int> _temporaryResurrectionHealProvider;
 
     public int MaxHealth => maxHealth;
     public int CurrentHealth => currentHealth;
@@ -34,6 +39,7 @@ public class PlayerHealth : MonoBehaviour
     public bool IsFull => currentHealth >= maxHealth;
     public bool IsInvulnerable => _invulnerabilityRoutine != null;
     public PlayerForceShield ForceShield => forceShield;
+    public int ResurrectionCharges => _resurrectionCharges + _temporaryResurrectionCharges;
 
     /// <summary>When true, kamikaze / collision enemies do not deal contact damage.</summary>
     public bool IgnoresEnemyCollisionDamage { get; set; }
@@ -46,6 +52,9 @@ public class PlayerHealth : MonoBehaviour
 
     /// <summary>Invoked once when health reaches zero.</summary>
     public event Action Died;
+
+    /// <summary>Invoked after HP is reduced by a hit (not shield absorbs). Args: damage applied, current, max.</summary>
+    public event Action<int, int, int> Damaged;
 
     void Awake()
     {
@@ -92,9 +101,16 @@ public class PlayerHealth : MonoBehaviour
 
         currentHealth = Mathf.Max(0, currentHealth - amount);
         HealthChanged?.Invoke(currentHealth, maxHealth);
+        Damaged?.Invoke(amount, currentHealth, maxHealth);
 
         if (currentHealth <= 0)
         {
+            if (TryResurrect())
+            {
+                BeginInvulnerability();
+                return true;
+            }
+
             EndInvulnerability();
             forceShield?.Disable();
             Died?.Invoke();
@@ -103,6 +119,86 @@ public class PlayerHealth : MonoBehaviour
 
         BeginInvulnerability();
         return true;
+    }
+
+    /// <summary>Adds permanent resurrection charges used when lethal damage would kill the player.</summary>
+    public void AddResurrectionCharges(int charges, int healAmount)
+    {
+        if (charges <= 0)
+        {
+            return;
+        }
+
+        _resurrectionCharges += charges;
+        _resurrectionHealAmount = Mathf.Max(1, healAmount);
+    }
+
+    /// <summary>Adds loop-scoped resurrection charges with a flat heal amount.</summary>
+    public void AddTemporaryResurrectionCharges(int charges, int healAmount)
+    {
+        if (charges <= 0)
+        {
+            return;
+        }
+
+        _temporaryResurrectionCharges += charges;
+        _temporaryResurrectionHealAmount = Mathf.Max(1, healAmount);
+        _temporaryResurrectionHealProvider = null;
+    }
+
+    /// <summary>Adds loop-scoped resurrection charges with a dynamic heal provider.</summary>
+    public void AddTemporaryResurrectionCharges(int charges, Func<int> healProvider)
+    {
+        if (charges <= 0 || healProvider == null)
+        {
+            return;
+        }
+
+        _temporaryResurrectionCharges += charges;
+        _temporaryResurrectionHealProvider = healProvider;
+    }
+
+    /// <summary>Clears all temporary resurrection charges without touching permanent ones.</summary>
+    public void ClearTemporaryResurrectionCharges()
+    {
+        _temporaryResurrectionCharges = 0;
+        _temporaryResurrectionHealProvider = null;
+    }
+
+    bool TryResurrect()
+    {
+        if (_temporaryResurrectionCharges > 0)
+        {
+            _temporaryResurrectionCharges--;
+            int healAmount = _temporaryResurrectionHealProvider != null
+                ? _temporaryResurrectionHealProvider()
+                : _temporaryResurrectionHealAmount;
+            if (_temporaryResurrectionCharges <= 0)
+            {
+                _temporaryResurrectionHealProvider = null;
+            }
+
+            currentHealth = Mathf.Clamp(Mathf.Max(1, healAmount), 1, maxHealth);
+            HealthChanged?.Invoke(currentHealth, maxHealth);
+            return true;
+        }
+
+        if (_resurrectionCharges <= 0)
+        {
+            return false;
+        }
+
+        _resurrectionCharges--;
+        currentHealth = Mathf.Clamp(Mathf.Max(1, _resurrectionHealAmount), 1, maxHealth);
+        HealthChanged?.Invoke(currentHealth, maxHealth);
+        return true;
+    }
+
+    /// <summary>Sets current HP without invulnerability or death checks. Clamped to max.</summary>
+    public void ForceSetCurrentHealth(int value)
+    {
+        currentHealth = Mathf.Clamp(value, 0, maxHealth);
+        HealthChanged?.Invoke(currentHealth, maxHealth);
     }
 
     /// <summary>Restores health up to Max Health. Returns true if any HP was gained.</summary>

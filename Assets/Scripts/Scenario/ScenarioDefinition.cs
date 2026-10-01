@@ -20,7 +20,7 @@ public class ScenarioDefinition
 
     [Min(0.1f)]
     [Tooltip("Seconds this scenario takes to scroll fully past the camera.")]
-    public float durationSeconds = 8f;
+    public float durationSeconds = 20f;
 
     [Tooltip("RNG seed used to build this chunk's decorations.")]
     public int seed;

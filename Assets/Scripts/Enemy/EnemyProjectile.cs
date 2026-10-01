@@ -71,6 +71,12 @@ public class EnemyProjectile : MonoBehaviour
 
     void OnTriggerEnter2D(Collider2D other)
     {
+        if (other.TryGetComponent(out AllyDrone drone) && drone.BlocksProjectiles)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         if (!other.CompareTag("Player"))
         {
             return;
